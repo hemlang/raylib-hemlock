@@ -13,6 +13,7 @@
     "ffi",
     "gui"
   ],
+  "dependencies": {},
   "native": {
     "requires": ["raylib"]
   },
