@@ -1,4 +1,4 @@
-# Claude Instructions for raylib-hemlock
+# Claude Instructions for raylock
 
 ## Getting Hemlock
 
