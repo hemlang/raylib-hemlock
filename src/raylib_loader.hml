@@ -1,0 +1,40 @@
+// raylib_loader.hml - Platform-aware raylib library loader
+// Import this module first to load the raylib library for your platform
+
+let _platform = __platform();
+
+if (_platform == "macos") {
+    // Try Apple Silicon path first, then Intel path
+    try {
+        import "/opt/homebrew/opt/raylib/lib/libraylib.dylib";
+    } catch (e) {
+        try {
+            import "/opt/homebrew/Cellar/raylib/5.5/lib/libraylib.dylib";
+        } catch (e2) {
+            try {
+                import "/usr/local/lib/libraylib.dylib";
+            } catch (e3) {
+                throw "Failed to load raylib on macOS. Install with: brew install raylib";
+            }
+        }
+    }
+} else if (_platform == "linux") {
+    try {
+        import "/usr/lib/libraylib.so";
+    } catch (e) {
+        try {
+            import "/usr/local/lib/libraylib.so";
+        } catch (e2) {
+            try {
+                import "/usr/lib/x86_64-linux-gnu/libraylib.so";
+            } catch (e3) {
+                throw "Failed to load raylib on Linux. Install raylib and ensure libraylib.so is in your library path.";
+            }
+        }
+    }
+} else {
+    throw "Unsupported platform: " + _platform + ". raylib-hemlock supports macOS and Linux.";
+}
+
+// Export a dummy value so this can be imported
+export let RAYLIB_LOADED = true;

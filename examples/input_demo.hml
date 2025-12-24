@@ -1,11 +1,8 @@
 // Input Demo - Keyboard and mouse input example
 // Move a ball with arrow keys, click to teleport
 
-// Load raylib library - adjust path for your system:
-//   Linux: import "/usr/lib/libraylib.so";
-//   macOS (Apple Silicon): import "/opt/homebrew/opt/raylib/lib/libraylib.dylib";
-//   macOS (Intel): import "/usr/local/lib/libraylib.dylib";
-import "/usr/lib/libraylib.so";
+// Load raylib library (cross-platform)
+import { RAYLIB_LOADED } from "../src/raylib_loader.hml";
 
 // Window functions
 extern fn InitWindow(width: i32, height: i32, title: string): void;

@@ -2,13 +2,22 @@
 // Uses Hemlock's FFI to call raylib C functions
 //
 // Usage:
-//   Before importing this module, load raylib in your main file:
-//   import "/usr/lib/libraylib.so";              // Linux
-//   import "/opt/homebrew/opt/raylib/lib/libraylib.dylib";  // macOS (Apple Silicon)
-//   import "/usr/local/lib/libraylib.dylib";     // macOS (Intel)
+//   1. First import the loader to load raylib for your platform:
+//      import { RAYLIB_LOADED } from "./raylib_loader.hml";
 //
-// Note: This module provides extern declarations but does NOT load the library.
-// The library must be loaded by the application before using these bindings.
+//   2. Then define the extern functions you need in your file.
+//      See examples/ for usage patterns.
+//
+// This file contains:
+//   - extern fn declarations for raylib functions
+//   - Utility functions (Color, collision detection, math helpers, etc.)
+//   - Constants (colors, keys, config flags, etc.)
+//
+// Note: The raylib_loader.hml module handles cross-platform library loading.
+// Import it before defining extern functions.
+
+// Load raylib library (cross-platform)
+import { RAYLIB_LOADED } from "./raylib_loader.hml";
 
 // ============================================================================
 // Core - Window/Context

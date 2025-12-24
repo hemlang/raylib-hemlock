@@ -37,6 +37,17 @@ hemlock examples/animation.hml
 
 ## Key Files
 
+- `src/raylib_loader.hml` - Cross-platform raylib library loader (macOS + Linux)
 - `src/raylib.hml` - Core raylib FFI bindings and utility functions
 - `examples/` - Example Hemlock programs using raylib
 - `tests/` - Test suite for utility functions
+
+## Cross-Platform Support
+
+The `src/raylib_loader.hml` module automatically detects the platform and loads raylib from common installation paths:
+
+- **macOS (Apple Silicon)**: `/opt/homebrew/opt/raylib/lib/libraylib.dylib`
+- **macOS (Intel)**: `/usr/local/lib/libraylib.dylib`
+- **Linux**: `/usr/lib/libraylib.so`, `/usr/local/lib/libraylib.so`
+
+Examples import the loader first, then define their extern functions.
