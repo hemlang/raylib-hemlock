@@ -791,18 +791,16 @@ while (WindowShouldClose() == 0) {
     // Draw next piece preview
     DrawText("Next", panelX, 370, 16, LIGHTGRAY);
     DrawRectangle(panelX, 395, 85, 85, DARKGRAY);
-    // Draw preview blocks inline (avoiding function call issues)
-    let npColor = getPieceColor(nextPiece);
-    let npOx = panelX + 15;
-    let npOy = 410;
-    let npBlock0 = getPieceBlock(nextPiece, 0, 0);
-    let npBlock1 = getPieceBlock(nextPiece, 0, 1);
-    let npBlock2 = getPieceBlock(nextPiece, 0, 2);
-    let npBlock3 = getPieceBlock(nextPiece, 0, 3);
-    DrawRectangle(npOx + (npBlock0 % 10) * 20, npOy + (npBlock0 / 10) * 20, 18, 18, npColor);
-    DrawRectangle(npOx + (npBlock1 % 10) * 20, npOy + (npBlock1 / 10) * 20, 18, 18, npColor);
-    DrawRectangle(npOx + (npBlock2 % 10) * 20, npOy + (npBlock2 / 10) * 20, 18, 18, npColor);
-    DrawRectangle(npOx + (npBlock3 % 10) * 20, npOy + (npBlock3 / 10) * 20, 18, 18, npColor);
+    // Draw preview using divi for integer division
+    let prevColor = getPieceColor(nextPiece);
+    let prevB0 = getPieceBlock(nextPiece, 0, 0);
+    let prevB1 = getPieceBlock(nextPiece, 0, 1);
+    let prevB2 = getPieceBlock(nextPiece, 0, 2);
+    let prevB3 = getPieceBlock(nextPiece, 0, 3);
+    DrawRectangle(365 + (prevB0 % 10) * 20, 415 + divi(prevB0, 10) * 20, 18, 18, prevColor);
+    DrawRectangle(365 + (prevB1 % 10) * 20, 415 + divi(prevB1, 10) * 20, 18, 18, prevColor);
+    DrawRectangle(365 + (prevB2 % 10) * 20, 415 + divi(prevB2, 10) * 20, 18, 18, prevColor);
+    DrawRectangle(365 + (prevB3 % 10) * 20, 415 + divi(prevB3, 10) * 20, 18, 18, prevColor);
 
     // Controls
     DrawText("Controls:", panelX, 500, 14, LIGHTGRAY);
