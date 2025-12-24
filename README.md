@@ -99,17 +99,22 @@ hemlock tests/test_constants.hml
 ```
 raylib-hemlock/
 ├── src/
-│   └── raylib.hml           # Core raylib bindings reference
+│   └── raylib.hml               # Core raylib bindings and utilities
 ├── examples/
-│   ├── hello_window.hml     # Basic window, shapes, and text
-│   ├── input_demo.hml       # Keyboard and mouse input
-│   └── animation.hml        # Bouncing balls with physics
+│   ├── hello_window.hml         # Basic window, shapes, and text
+│   ├── input_demo.hml           # Keyboard and mouse input
+│   └── animation.hml            # Bouncing balls with physics
 ├── tests/
-│   ├── run_tests.sh         # Test runner script
-│   ├── test_colors.hml      # Color function tests
-│   ├── test_collision.hml   # Collision detection tests
-│   ├── test_math.hml        # Math utility tests
-│   └── test_constants.hml   # Constant value tests
+│   ├── run_tests.sh             # Test runner script
+│   ├── test_colors.hml          # Basic color function tests
+│   ├── test_colors_extended.hml # Extended color tests (blend, invert, etc.)
+│   ├── test_collision.hml       # Basic collision detection tests
+│   ├── test_collision_extended.hml # Extended collision tests (lines, triangles)
+│   ├── test_math.hml            # Basic math utility tests
+│   ├── test_math_extended.hml   # Extended math tests
+│   ├── test_vectors.hml         # Vector operation tests
+│   ├── test_easing.hml          # Easing function tests
+│   └── test_constants.hml       # Constant value tests
 ├── .gitignore
 └── README.md
 ```
@@ -159,9 +164,49 @@ raylib-hemlock/
 - `SetGesturesEnabled`, `IsGestureDetected`, `GetGestureDetected`
 - `GetGestureHoldDuration`, `GetGestureDragAngle`, `GetGesturePinchAngle`
 
-### Audio
+### Audio - Device
 - `InitAudioDevice`, `CloseAudioDevice`, `IsAudioDeviceReady`
 - `SetMasterVolume`, `GetMasterVolume`
+
+### Audio - Sound
+- `LoadSound`, `UnloadSound`
+- `PlaySound`, `StopSound`, `PauseSound`, `ResumeSound`
+- `IsSoundPlaying`, `SetSoundVolume`, `SetSoundPitch`, `SetSoundPan`
+
+### Audio - Music
+- `LoadMusicStream`, `UnloadMusicStream`
+- `PlayMusicStream`, `StopMusicStream`, `PauseMusicStream`, `ResumeMusicStream`
+- `UpdateMusicStream`, `IsMusicStreamPlaying`
+- `SetMusicVolume`, `SetMusicPitch`, `SetMusicPan`
+- `GetMusicTimeLength`, `GetMusicTimePlayed`, `SeekMusicStream`, `SetMusicLooping`
+
+### Textures
+- `LoadTexture`, `UnloadTexture`, `LoadTextureFromImage`
+- `DrawTexture`, `DrawTextureV`, `DrawTextureEx`, `DrawTextureRec`, `DrawTexturePro`
+- `GetTextureWidth`, `GetTextureHeight`
+- `SetTextureFilter`, `SetTextureWrap`, `GenTextureMipmaps`
+- `LoadRenderTexture`, `UnloadRenderTexture`, `BeginTextureMode`, `EndTextureMode`
+
+### Fonts
+- `LoadFont`, `LoadFontEx`, `UnloadFont`
+- `DrawTextEx`, `DrawTextPro`, `MeasureTextEx`
+- `GetFontDefault`, `IsFontValid`
+
+### Images
+- `LoadImage`, `LoadImageRaw`, `LoadImageFromMemory`, `UnloadImage`, `ExportImage`
+- `GenImageColor`, `GenImageGradientLinear`, `GenImageGradientRadial`, `GenImageChecked`, `GenImageWhiteNoise`, `GenImagePerlinNoise`
+- `ImageCopy`, `ImageFromImage`, `ImageResize`, `ImageResizeNN`, `ImageCrop`
+- `ImageFlipVertical`, `ImageFlipHorizontal`, `ImageRotate`, `ImageRotateCW`, `ImageRotateCCW`
+- `ImageColorTint`, `ImageColorInvert`, `ImageColorGrayscale`, `ImageColorContrast`, `ImageColorBrightness`
+- `ImageClearBackground`, `ImageDrawPixel`, `ImageDrawLine`, `ImageDrawCircle`, `ImageDrawRectangle`, `ImageDrawText`
+- `GetImageWidth`, `GetImageHeight`
+
+### File I/O
+- `FileExists`, `DirectoryExists`, `IsFileExtension`, `IsPathFile`
+- `GetFileExtension`, `GetFileName`, `GetFileNameWithoutExt`
+- `GetDirectoryPath`, `GetPrevDirectoryPath`, `GetWorkingDirectory`, `ChangeDirectory`
+- `GetFileLength`, `GetFileModTime`
+- `LoadFileText`, `UnloadFileText`, `SaveFileText`
 
 ### Utility Functions (Pure Hemlock)
 - **Colors**: `Color`, `ColorAlpha`, `ColorBrightness`, `ColorGetR/G/B/A`
@@ -175,6 +220,9 @@ raylib-hemlock/
 - **Gamepad**: Button and axis constants
 - **Blend Modes**: `BLEND_ALPHA`, `BLEND_ADDITIVE`, `BLEND_MULTIPLIED`, etc.
 - **Gestures**: `GESTURE_TAP`, `GESTURE_HOLD`, `GESTURE_DRAG`, swipes, pinch, etc.
+- **Texture Filters**: `TEXTURE_FILTER_POINT`, `TEXTURE_FILTER_BILINEAR`, `TEXTURE_FILTER_TRILINEAR`, etc.
+- **Texture Wrap**: `TEXTURE_WRAP_REPEAT`, `TEXTURE_WRAP_CLAMP`, `TEXTURE_WRAP_MIRROR_REPEAT`, etc.
+- **Pixel Formats**: `PIXELFORMAT_UNCOMPRESSED_GRAYSCALE`, `PIXELFORMAT_UNCOMPRESSED_R8G8B8A8`, etc.
 
 ## Notes
 
@@ -189,6 +237,12 @@ Raylib uses RGBA colors packed as 32-bit integers. On little-endian systems (mos
 
 ### Struct Limitations
 Since Hemlock's FFI currently passes structs by value for small structs but doesn't have full struct support, some raylib functions that require complex structs (like `Vector2`, `Rectangle`, `Camera2D`) have coordinate-based alternatives provided in the bindings.
+
+### Textures, Sounds, Fonts, and Images
+These resources are returned as opaque pointers (`ptr` type) from the load functions. Make sure to:
+1. Always call the corresponding `Unload*` function when done to free memory
+2. For music streams, call `UpdateMusicStream` in your game loop to keep audio playing
+3. Textures require a valid OpenGL context (window must be initialized first)
 
 ## License
 

@@ -227,6 +227,192 @@ extern fn SetMasterVolume(volume: f32): void;
 extern fn GetMasterVolume(): f32;
 
 // ============================================================================
+// Textures - Loading and Drawing
+// ============================================================================
+// Note: Texture2D is passed as an opaque handle (pointer)
+// These functions assume the FFI can handle struct-by-value or pointer semantics
+
+extern fn LoadTexture(fileName: string): ptr;
+extern fn UnloadTexture(texture: ptr): void;
+extern fn DrawTexture(texture: ptr, posX: i32, posY: i32, tint: u32): void;
+extern fn DrawTextureV(texture: ptr, posX: f32, posY: f32, tint: u32): void;
+extern fn DrawTextureEx(texture: ptr, posX: f32, posY: f32, rotation: f32, scale: f32, tint: u32): void;
+extern fn DrawTextureRec(texture: ptr, srcX: f32, srcY: f32, srcW: f32, srcH: f32, posX: f32, posY: f32, tint: u32): void;
+extern fn DrawTexturePro(texture: ptr, srcX: f32, srcY: f32, srcW: f32, srcH: f32, destX: f32, destY: f32, destW: f32, destH: f32, originX: f32, originY: f32, rotation: f32, tint: u32): void;
+
+// Texture properties (get dimensions from loaded texture)
+extern fn GetTextureWidth(texture: ptr): i32;
+extern fn GetTextureHeight(texture: ptr): i32;
+
+// Texture configuration
+extern fn SetTextureFilter(texture: ptr, filter: i32): void;
+extern fn SetTextureWrap(texture: ptr, wrap: i32): void;
+extern fn GenTextureMipmaps(texture: ptr): void;
+
+// Render texture (for off-screen rendering)
+extern fn LoadRenderTexture(width: i32, height: i32): ptr;
+extern fn UnloadRenderTexture(target: ptr): void;
+extern fn BeginTextureMode(target: ptr): void;
+extern fn EndTextureMode(): void;
+
+// ============================================================================
+// Audio - Sound Loading and Playing
+// ============================================================================
+
+extern fn LoadSound(fileName: string): ptr;
+extern fn UnloadSound(sound: ptr): void;
+extern fn PlaySound(sound: ptr): void;
+extern fn StopSound(sound: ptr): void;
+extern fn PauseSound(sound: ptr): void;
+extern fn ResumeSound(sound: ptr): void;
+extern fn IsSoundPlaying(sound: ptr): i32;
+extern fn SetSoundVolume(sound: ptr, volume: f32): void;
+extern fn SetSoundPitch(sound: ptr, pitch: f32): void;
+extern fn SetSoundPan(sound: ptr, pan: f32): void;
+
+// ============================================================================
+// Audio - Music Streaming
+// ============================================================================
+
+extern fn LoadMusicStream(fileName: string): ptr;
+extern fn UnloadMusicStream(music: ptr): void;
+extern fn PlayMusicStream(music: ptr): void;
+extern fn StopMusicStream(music: ptr): void;
+extern fn PauseMusicStream(music: ptr): void;
+extern fn ResumeMusicStream(music: ptr): void;
+extern fn UpdateMusicStream(music: ptr): void;
+extern fn IsMusicStreamPlaying(music: ptr): i32;
+extern fn SetMusicVolume(music: ptr, volume: f32): void;
+extern fn SetMusicPitch(music: ptr, pitch: f32): void;
+extern fn SetMusicPan(music: ptr, pan: f32): void;
+extern fn GetMusicTimeLength(music: ptr): f32;
+extern fn GetMusicTimePlayed(music: ptr): f32;
+extern fn SeekMusicStream(music: ptr, position: f32): void;
+extern fn SetMusicLooping(music: ptr, looping: i32): void;
+
+// ============================================================================
+// Text - Font Loading and Drawing
+// ============================================================================
+// Note: Font is passed as an opaque handle (pointer)
+
+extern fn LoadFont(fileName: string): ptr;
+extern fn LoadFontEx(fileName: string, fontSize: i32, codepoints: ptr, codepointCount: i32): ptr;
+extern fn UnloadFont(font: ptr): void;
+extern fn DrawTextEx(font: ptr, text: string, posX: f32, posY: f32, fontSize: f32, spacing: f32, tint: u32): void;
+extern fn DrawTextPro(font: ptr, text: string, posX: f32, posY: f32, originX: f32, originY: f32, rotation: f32, fontSize: f32, spacing: f32, tint: u32): void;
+extern fn MeasureTextEx(font: ptr, text: string, fontSize: f32, spacing: f32): f32;
+extern fn GetFontDefault(): ptr;
+extern fn IsFontValid(font: ptr): i32;
+
+// ============================================================================
+// Images - Loading and Manipulation
+// ============================================================================
+// Note: Image is passed as an opaque handle (pointer)
+
+extern fn LoadImage(fileName: string): ptr;
+extern fn LoadImageRaw(fileName: string, width: i32, height: i32, format: i32, headerSize: i32): ptr;
+extern fn LoadImageFromMemory(fileType: string, fileData: ptr, dataSize: i32): ptr;
+extern fn UnloadImage(image: ptr): void;
+extern fn ExportImage(image: ptr, fileName: string): i32;
+
+// Image generation
+extern fn GenImageColor(width: i32, height: i32, color: u32): ptr;
+extern fn GenImageGradientLinear(width: i32, height: i32, direction: i32, start: u32, end: u32): ptr;
+extern fn GenImageGradientRadial(width: i32, height: i32, density: f32, inner: u32, outer: u32): ptr;
+extern fn GenImageChecked(width: i32, height: i32, checksX: i32, checksY: i32, col1: u32, col2: u32): ptr;
+extern fn GenImageWhiteNoise(width: i32, height: i32, factor: f32): ptr;
+extern fn GenImagePerlinNoise(width: i32, height: i32, offsetX: i32, offsetY: i32, scale: f32): ptr;
+
+// Image manipulation
+extern fn ImageCopy(image: ptr): ptr;
+extern fn ImageFromImage(image: ptr, x: i32, y: i32, width: i32, height: i32): ptr;
+extern fn ImageResize(image: ptr, newWidth: i32, newHeight: i32): void;
+extern fn ImageResizeNN(image: ptr, newWidth: i32, newHeight: i32): void;
+extern fn ImageCrop(image: ptr, x: i32, y: i32, width: i32, height: i32): void;
+extern fn ImageFlipVertical(image: ptr): void;
+extern fn ImageFlipHorizontal(image: ptr): void;
+extern fn ImageRotate(image: ptr, degrees: i32): void;
+extern fn ImageRotateCW(image: ptr): void;
+extern fn ImageRotateCCW(image: ptr): void;
+extern fn ImageColorTint(image: ptr, color: u32): void;
+extern fn ImageColorInvert(image: ptr): void;
+extern fn ImageColorGrayscale(image: ptr): void;
+extern fn ImageColorContrast(image: ptr, contrast: f32): void;
+extern fn ImageColorBrightness(image: ptr, brightness: i32): void;
+
+// Image drawing
+extern fn ImageClearBackground(image: ptr, color: u32): void;
+extern fn ImageDrawPixel(image: ptr, posX: i32, posY: i32, color: u32): void;
+extern fn ImageDrawLine(image: ptr, startX: i32, startY: i32, endX: i32, endY: i32, color: u32): void;
+extern fn ImageDrawCircle(image: ptr, centerX: i32, centerY: i32, radius: i32, color: u32): void;
+extern fn ImageDrawRectangle(image: ptr, posX: i32, posY: i32, width: i32, height: i32, color: u32): void;
+extern fn ImageDrawText(image: ptr, text: string, posX: i32, posY: i32, fontSize: i32, color: u32): void;
+
+// Image to texture
+extern fn LoadTextureFromImage(image: ptr): ptr;
+
+// Image properties
+extern fn GetImageWidth(image: ptr): i32;
+extern fn GetImageHeight(image: ptr): i32;
+
+// ============================================================================
+// File I/O Utilities
+// ============================================================================
+
+extern fn FileExists(fileName: string): i32;
+extern fn DirectoryExists(dirPath: string): i32;
+extern fn IsFileExtension(fileName: string, ext: string): i32;
+extern fn GetFileExtension(fileName: string): string;
+extern fn GetFileName(filePath: string): string;
+extern fn GetFileNameWithoutExt(filePath: string): string;
+extern fn GetDirectoryPath(filePath: string): string;
+extern fn GetPrevDirectoryPath(dirPath: string): string;
+extern fn GetWorkingDirectory(): string;
+extern fn ChangeDirectory(dir: string): i32;
+extern fn GetFileLength(fileName: string): i32;
+extern fn GetFileModTime(fileName: string): i64;
+extern fn IsPathFile(path: string): i32;
+
+// Text file I/O
+extern fn LoadFileText(fileName: string): string;
+extern fn UnloadFileText(text: string): void;
+extern fn SaveFileText(fileName: string, text: string): i32;
+
+// ============================================================================
+// Texture Filter/Wrap Constants
+// ============================================================================
+
+export let TEXTURE_FILTER_POINT: i32           = 0;
+export let TEXTURE_FILTER_BILINEAR: i32        = 1;
+export let TEXTURE_FILTER_TRILINEAR: i32       = 2;
+export let TEXTURE_FILTER_ANISOTROPIC_4X: i32  = 3;
+export let TEXTURE_FILTER_ANISOTROPIC_8X: i32  = 4;
+export let TEXTURE_FILTER_ANISOTROPIC_16X: i32 = 5;
+
+export let TEXTURE_WRAP_REPEAT: i32          = 0;
+export let TEXTURE_WRAP_CLAMP: i32           = 1;
+export let TEXTURE_WRAP_MIRROR_REPEAT: i32   = 2;
+export let TEXTURE_WRAP_MIRROR_CLAMP: i32    = 3;
+
+// ============================================================================
+// Pixel Format Constants
+// ============================================================================
+
+export let PIXELFORMAT_UNCOMPRESSED_GRAYSCALE: i32    = 1;
+export let PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA: i32   = 2;
+export let PIXELFORMAT_UNCOMPRESSED_R5G6B5: i32       = 3;
+export let PIXELFORMAT_UNCOMPRESSED_R8G8B8: i32       = 4;
+export let PIXELFORMAT_UNCOMPRESSED_R5G5B5A1: i32     = 5;
+export let PIXELFORMAT_UNCOMPRESSED_R4G4B4A4: i32     = 6;
+export let PIXELFORMAT_UNCOMPRESSED_R8G8B8A8: i32     = 7;
+export let PIXELFORMAT_UNCOMPRESSED_R32: i32          = 8;
+export let PIXELFORMAT_UNCOMPRESSED_R32G32B32: i32    = 9;
+export let PIXELFORMAT_UNCOMPRESSED_R32G32B32A32: i32 = 10;
+export let PIXELFORMAT_UNCOMPRESSED_R16: i32          = 11;
+export let PIXELFORMAT_UNCOMPRESSED_R16G16B16: i32    = 12;
+export let PIXELFORMAT_UNCOMPRESSED_R16G16B16A16: i32 = 13;
+
+// ============================================================================
 // Color Constants (RGBA packed as u32 - little endian: ABGR in memory)
 // ============================================================================
 
