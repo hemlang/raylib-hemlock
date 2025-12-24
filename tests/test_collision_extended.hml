@@ -34,14 +34,64 @@ fn Vector2Distance(x1: f32, y1: f32, x2: f32, y2: f32): f32 {
     return sqrt(dx * dx + dy * dy);
 }
 
+fn Abs(value: f32): f32 {
+    if (value < 0.0) { return -value; }
+    return value;
+}
+
+fn Min(a: f32, b: f32): f32 {
+    if (a < b) { return a; }
+    return b;
+}
+
+fn Max(a: f32, b: f32): f32 {
+    if (a > b) { return a; }
+    return b;
+}
+
 fn CheckCollisionLinesXY(p1x: f32, p1y: f32, p2x: f32, p2y: f32, p3x: f32, p3y: f32, p4x: f32, p4y: f32): i32 {
     let d1x = p2x - p1x;
     let d1y = p2y - p1y;
     let d2x = p4x - p3x;
     let d2y = p4y - p3y;
 
+    // Handle degenerate zero-length lines (points)
+    if (d1x == 0.0 && d1y == 0.0) { return 0; }
+    if (d2x == 0.0 && d2y == 0.0) { return 0; }
+
     let cross = d1x * d2y - d1y * d2x;
-    if (cross == 0.0) { return 0; }
+
+    // Variables for collinear case (declared at function scope for Hemlock compatibility)
+    let crossP3: f32 = 0.0;
+    let min1: f32 = 0.0;
+    let max1: f32 = 0.0;
+    let min2: f32 = 0.0;
+    let max2: f32 = 0.0;
+
+    // Handle collinear/parallel case
+    if (cross == 0.0) {
+        // Check if lines are collinear by testing if p3 lies on line through p1-p2
+        crossP3 = (p3x - p1x) * d1y - (p3y - p1y) * d1x;
+        if (crossP3 != 0.0) { return 0; } // Parallel but not collinear
+
+        // Collinear - check if segments overlap
+        // Project onto the axis with larger extent
+        if (Abs(d1x) >= Abs(d1y)) {
+            // Use X axis
+            min1 = Min(p1x, p2x);
+            max1 = Max(p1x, p2x);
+            min2 = Min(p3x, p4x);
+            max2 = Max(p3x, p4x);
+        } else {
+            // Use Y axis
+            min1 = Min(p1y, p2y);
+            max1 = Max(p1y, p2y);
+            min2 = Min(p3y, p4y);
+            max2 = Max(p3y, p4y);
+        }
+        if (max1 >= min2 && max2 >= min1) { return 1; }
+        return 0;
+    }
 
     let dx = p3x - p1x;
     let dy = p3y - p1y;
@@ -69,7 +119,16 @@ fn CheckCollisionPointTriangleXY(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by
     let dot11 = v1x * v1x + v1y * v1y;
     let dot12 = v1x * v2x + v1y * v2y;
 
-    let invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
+    let denom = dot00 * dot11 - dot01 * dot01;
+
+    // Handle degenerate triangle (all vertices at same point)
+    if (denom == 0.0) {
+        // Check if point is at the same location as the degenerate triangle
+        if (px == ax && py == ay) { return 1; }
+        return 0;
+    }
+
+    let invDenom = 1.0 / denom;
     let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
     let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
