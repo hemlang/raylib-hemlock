@@ -1,0 +1,735 @@
+// Virtual Cat - A pet simulation game
+// Pet, feed, and play with your virtual kitty!
+// Demonstrates: state machines, mouse interaction, animations, pet AI
+
+import {
+    InitWindow, CloseWindow, WindowShouldClose, SetTargetFPS, GetFPS, GetFrameTime,
+    BeginDrawing, EndDrawing, ClearBackground,
+    DrawCircle, DrawCircleLines, DrawRectangle, DrawRectangleLines,
+    DrawEllipse, DrawTriangle, DrawLine, DrawText,
+    IsMouseButtonPressed, IsMouseButtonDown, GetMouseX, GetMouseY,
+    IsKeyPressed, GetRandomValue, GetTime,
+    CheckCollisionPointCircleXY, CheckCollisionPointRectXY,
+    RAYWHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK, SKYBLUE,
+    DARKGRAY, LIGHTGRAY, BLACK, WHITE, MAROON, LIME, GOLD, BEIGE, BROWN, DARKBROWN,
+    MOUSE_BUTTON_LEFT, KEY_ONE, KEY_TWO, KEY_THREE, KEY_R
+} from "../src/raylib.hml";
+
+let screenWidth = 800;
+let screenHeight = 600;
+
+// Cat position and state
+let catX: f32 = 400.0;
+let catY: f32 = 350.0;
+let catVX: f32 = 0.0;
+let catVY: f32 = 0.0;
+let catTargetX: f32 = 400.0;
+let catTargetY: f32 = 350.0;
+let catFacing = 1;  // 1 = right, -1 = left
+
+// Cat stats (0-100)
+let hunger: f32 = 30.0;
+let happiness: f32 = 70.0;
+let energy: f32 = 80.0;
+
+// Cat state: 0=idle, 1=walking, 2=sleeping, 3=eating, 4=playing, 5=being pet, 6=meowing
+let catState = 0;
+let stateTimer: f32 = 0.0;
+let idleTimer: f32 = 0.0;
+
+// Animation
+let animFrame: f32 = 0.0;
+let tailWag: f32 = 0.0;
+let earTwitch: f32 = 0.0;
+let eyeBlink: f32 = 0.0;
+let blinkTimer: f32 = 0.0;
+let purring = 0;
+let purrTimer: f32 = 0.0;
+
+// Petting
+let petCount = 0;
+let lastPetX = 0;
+let lastPetY = 0;
+
+// Items
+let foodBowlX: f32 = 650.0;
+let foodBowlY: f32 = 500.0;
+let foodInBowl = 0;
+
+let toyBallX: f32 = 200.0;
+let toyBallY: f32 = 450.0;
+let toyBallVX: f32 = 0.0;
+let toyBallVY: f32 = 0.0;
+let toyBallActive = 0;
+
+let toyMouseX: f32 = 550.0;
+let toyMouseY: f32 = 400.0;
+
+// UI buttons
+let feedBtnX = 20;
+let feedBtnY = 520;
+let toyBtnX = 120;
+let toyBtnY = 520;
+let sleepBtnX = 220;
+let sleepBtnY = 520;
+
+// Speech bubble
+let showBubble = 0;
+let bubbleTimer: f32 = 0.0;
+let bubbleText = 0;  // 0=none, 1=meow, 2=purr, 3=hungry, 4=sleepy, 5=happy
+
+// Helper: distance between two points
+fn distance(x1: f32, y1: f32, x2: f32, y2: f32): f32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    // Approximate distance
+    if (dx < 0.0) { dx = -dx; }
+    if (dy < 0.0) { dy = -dy; }
+    return dx + dy * 0.7;
+}
+
+// Draw the cat - using DrawRectangle since DrawCircle/Ellipse seem broken
+fn drawCat() {
+    let ix: i32 = catX;
+    let iy: i32 = catY;
+
+    // Shadow
+    DrawRectangle(ix - 40, iy + 50, 80, 20, DARKGRAY);
+
+    // Tail
+    DrawRectangle(ix - 70, iy + 15, 40, 12, ORANGE);
+    DrawRectangle(ix - 85, iy + 10, 20, 10, ORANGE);
+
+    // Back legs
+    DrawRectangle(ix - 35, iy + 30, 20, 35, ORANGE);
+    DrawRectangle(ix + 15, iy + 30, 20, 35, ORANGE);
+
+    // Body
+    DrawRectangle(ix - 45, iy - 5, 90, 55, ORANGE);
+
+    // Belly
+    DrawRectangle(ix - 25, iy + 5, 50, 30, BEIGE);
+
+    // Front legs
+    DrawRectangle(ix - 30, iy + 35, 18, 30, ORANGE);
+    DrawRectangle(ix + 12, iy + 35, 18, 30, ORANGE);
+    // Paws
+    DrawRectangle(ix - 32, iy + 58, 22, 10, BEIGE);
+    DrawRectangle(ix + 10, iy + 58, 22, 10, BEIGE);
+
+    // Head
+    let headY = iy - 25;
+    if (catState == 2) {
+        headY = iy + 5;
+    }
+    DrawRectangle(ix - 35, headY - 30, 70, 60, ORANGE);
+
+    // Ears
+    DrawTriangle(ix - 30, headY - 25, ix - 35, headY - 55, ix - 10, headY - 30, ORANGE);
+    DrawTriangle(ix + 30, headY - 25, ix + 35, headY - 55, ix + 10, headY - 30, ORANGE);
+    // Inner ear
+    DrawTriangle(ix - 25, headY - 30, ix - 32, headY - 48, ix - 15, headY - 32, PINK);
+    DrawTriangle(ix + 25, headY - 30, ix + 32, headY - 48, ix + 15, headY - 32, PINK);
+
+    // Face - Eyes (using rectangles)
+    let eyeY = headY - 8;
+    DrawRectangle(ix - 20, eyeY - 6, 16, 12, WHITE);
+    DrawRectangle(ix + 4, eyeY - 6, 16, 12, WHITE);
+    // Pupils
+    DrawRectangle(ix - 14, eyeY - 3, 6, 6, BLACK);
+    DrawRectangle(ix + 10, eyeY - 3, 6, 6, BLACK);
+
+    // Nose
+    DrawTriangle(ix, headY + 8, ix - 6, headY + 2, ix + 6, headY + 2, PINK);
+
+    // Mouth
+    DrawLine(ix, headY + 10, ix - 8, headY + 16, BROWN);
+    DrawLine(ix, headY + 10, ix + 8, headY + 16, BROWN);
+
+    // Whiskers
+    DrawLine(ix - 18, headY + 6, ix - 50, headY, BROWN);
+    DrawLine(ix - 18, headY + 10, ix - 50, headY + 10, BROWN);
+    DrawLine(ix - 18, headY + 14, ix - 50, headY + 20, BROWN);
+    DrawLine(ix + 18, headY + 6, ix + 50, headY, BROWN);
+    DrawLine(ix + 18, headY + 10, ix + 50, headY + 10, BROWN);
+    DrawLine(ix + 18, headY + 14, ix + 50, headY + 20, BROWN);
+
+    // Forehead stripes
+    DrawLine(ix - 10, headY - 25, ix - 6, headY - 12, BROWN);
+    DrawLine(ix, headY - 28, ix, headY - 12, BROWN);
+    DrawLine(ix + 10, headY - 25, ix + 6, headY - 12, BROWN);
+
+    // Purr effect
+    if (purring != 0) {
+        DrawText("~", ix + 45, headY - 10, 20, PINK);
+        DrawText("~", ix + 55, headY, 16, PINK);
+    }
+
+    // Zzz when sleeping
+    if (catState == 2) {
+        DrawText("z", ix + 40, headY - 40, 16, SKYBLUE);
+        DrawText("Z", ix + 50, headY - 55, 20, SKYBLUE);
+        DrawText("Z", ix + 65, headY - 75, 24, SKYBLUE);
+    }
+}
+
+// Draw food bowl
+fn drawFoodBowl() {
+    let fx: i32 = foodBowlX;
+    let fy: i32 = foodBowlY;
+    // Bowl (using rectangles)
+    DrawRectangle(fx - 40, fy + 5, 80, 20, DARKGRAY);
+    DrawRectangle(fx - 35, fy - 5, 70, 15, LIGHTGRAY);
+    DrawRectangle(fx - 30, fy - 2, 60, 10, WHITE);
+
+    // Food
+    if (foodInBowl != 0) {
+        DrawRectangle(fx - 25, fy - 5, 50, 12, BROWN);
+        // Kibble pieces
+        DrawRectangle(fx - 15, fy - 3, 8, 8, DARKBROWN);
+        DrawRectangle(fx + 5, fy - 2, 8, 8, DARKBROWN);
+        DrawRectangle(fx - 5, fy + 1, 8, 6, DARKBROWN);
+    }
+
+    DrawText("Food Bowl", fx - 35, fy + 30, 14, DARKGRAY);
+}
+
+// Draw toy ball (using rectangles)
+fn drawToyBall() {
+    let bx: i32 = toyBallX;
+    let by: i32 = toyBallY;
+    DrawRectangle(bx - 12, by - 12, 24, 24, RED);
+    DrawRectangle(bx - 6, by - 6, 8, 8, PINK);
+    DrawRectangle(bx + 2, by + 2, 6, 6, YELLOW);
+}
+
+// Draw toy mouse (using rectangles)
+fn drawToyMouse() {
+    let mx: i32 = toyMouseX;
+    let my: i32 = toyMouseY;
+    // Body
+    DrawRectangle(mx - 18, my - 10, 36, 20, LIGHTGRAY);
+    // Head
+    DrawRectangle(mx + 12, my - 8, 18, 16, LIGHTGRAY);
+    // Ears
+    DrawTriangle(mx + 18, my - 8, mx + 14, my - 18, mx + 24, my - 10, PINK);
+    DrawTriangle(mx + 26, my - 6, mx + 22, my - 16, mx + 32, my - 8, PINK);
+    // Eyes
+    DrawRectangle(mx + 22, my - 4, 4, 4, BLACK);
+    // Nose
+    DrawRectangle(mx + 28, my, 4, 4, PINK);
+    // Tail
+    DrawLine(mx - 18, my, mx - 45, my - 15, LIGHTGRAY);
+    // Whiskers
+    DrawLine(mx + 30, my - 2, mx + 42, my - 5, DARKGRAY);
+    DrawLine(mx + 30, my + 2, mx + 42, my + 5, DARKGRAY);
+}
+
+// Draw speech bubble (using rectangles)
+fn drawBubble() {
+    if (showBubble != 0) {
+        let bx: i32 = catX + 50.0;
+        let by: i32 = catY - 80.0;
+
+        // Bubble
+        DrawRectangle(bx - 45, by - 25, 90, 50, WHITE);
+        DrawRectangleLines(bx - 45, by - 25, 90, 50, DARKGRAY);
+        // Pointer
+        DrawTriangle(bx - 30, by + 20, bx - 15, by + 20, bx - 25, by + 35, WHITE);
+
+        // Text
+        if (bubbleText == 1) { DrawText("Meow!", bx - 25, by - 8, 18, BLACK); }
+        if (bubbleText == 2) { DrawText("Purrr~", bx - 28, by - 8, 18, PINK); }
+        if (bubbleText == 3) { DrawText("Hungry!", bx - 32, by - 8, 18, ORANGE); }
+        if (bubbleText == 4) { DrawText("Sleepy..", bx - 35, by - 8, 16, SKYBLUE); }
+        if (bubbleText == 5) { DrawText("Happy!", bx - 28, by - 8, 18, LIME); }
+        if (bubbleText == 6) { DrawText("*munch*", bx - 32, by - 8, 16, BROWN); }
+    }
+}
+
+// Draw stat bars
+fn drawStats() {
+    let barWidth = 150;
+    let barHeight = 18;
+    let startX = 20;
+    let startY = 20;
+
+    // Hunger bar
+    DrawText("Hunger", startX, startY, 16, BLACK);
+    DrawRectangle(startX, startY + 20, barWidth, barHeight, DARKGRAY);
+    let hungerWidth: i32 = (hunger / 100.0) * barWidth;
+    if (hunger > 70.0) {
+        DrawRectangle(startX, startY + 20, hungerWidth, barHeight, RED);
+    } else if (hunger > 30.0) {
+        DrawRectangle(startX, startY + 20, hungerWidth, barHeight, ORANGE);
+    } else {
+        DrawRectangle(startX, startY + 20, hungerWidth, barHeight, GREEN);
+    }
+    DrawRectangleLines(startX, startY + 20, barWidth, barHeight, BLACK);
+
+    // Happiness bar
+    DrawText("Happiness", startX, startY + 50, 16, BLACK);
+    DrawRectangle(startX, startY + 70, barWidth, barHeight, DARKGRAY);
+    let happyWidth: i32 = (happiness / 100.0) * barWidth;
+    if (happiness > 60.0) {
+        DrawRectangle(startX, startY + 70, happyWidth, barHeight, LIME);
+    } else if (happiness > 30.0) {
+        DrawRectangle(startX, startY + 70, happyWidth, barHeight, YELLOW);
+    } else {
+        DrawRectangle(startX, startY + 70, happyWidth, barHeight, RED);
+    }
+    DrawRectangleLines(startX, startY + 70, barWidth, barHeight, BLACK);
+
+    // Energy bar
+    DrawText("Energy", startX, startY + 100, 16, BLACK);
+    DrawRectangle(startX, startY + 120, barWidth, barHeight, DARKGRAY);
+    let energyWidth: i32 = (energy / 100.0) * barWidth;
+    if (energy > 50.0) {
+        DrawRectangle(startX, startY + 120, energyWidth, barHeight, SKYBLUE);
+    } else if (energy > 20.0) {
+        DrawRectangle(startX, startY + 120, energyWidth, barHeight, YELLOW);
+    } else {
+        DrawRectangle(startX, startY + 120, energyWidth, barHeight, RED);
+    }
+    DrawRectangleLines(startX, startY + 120, barWidth, barHeight, BLACK);
+}
+
+// Draw UI buttons
+fn drawButtons() {
+    let btnW = 80;
+    let btnH = 50;
+
+    // Feed button
+    DrawRectangle(feedBtnX, feedBtnY, btnW, btnH, ORANGE);
+    DrawRectangleLines(feedBtnX, feedBtnY, btnW, btnH, BLACK);
+    DrawText("Feed", feedBtnX + 20, feedBtnY + 8, 18, WHITE);
+    DrawText("[1]", feedBtnX + 28, feedBtnY + 30, 14, WHITE);
+
+    // Play button
+    DrawRectangle(toyBtnX, toyBtnY, btnW, btnH, PINK);
+    DrawRectangleLines(toyBtnX, toyBtnY, btnW, btnH, BLACK);
+    DrawText("Play", toyBtnX + 22, toyBtnY + 8, 18, WHITE);
+    DrawText("[2]", toyBtnX + 28, toyBtnY + 30, 14, WHITE);
+
+    // Sleep button
+    DrawRectangle(sleepBtnX, sleepBtnY, btnW, btnH, SKYBLUE);
+    DrawRectangleLines(sleepBtnX, sleepBtnY, btnW, btnH, BLACK);
+    DrawText("Sleep", sleepBtnX + 16, sleepBtnY + 8, 18, WHITE);
+    DrawText("[3]", sleepBtnX + 28, sleepBtnY + 30, 14, WHITE);
+}
+
+// Show a speech bubble
+fn showSpeech(text: i32) {
+    showBubble = 1;
+    bubbleTimer = 2.0;
+    bubbleText = text;
+}
+
+// Cat AI - decide what to do
+fn updateCatAI(dt: f32) {
+    idleTimer = idleTimer + dt;
+
+    // Random idle behaviors
+    if (catState == 0) {
+        if (idleTimer > 3.0) {
+            idleTimer = 0.0;
+            let action = GetRandomValue(0, 10);
+
+            if (action < 3) {
+                // Walk somewhere random
+                catTargetX = GetRandomValue(100, 700);
+                catTargetY = GetRandomValue(300, 450);
+                catState = 1;
+            } else if (action == 3) {
+                // Meow
+                catState = 6;
+                stateTimer = 0.5;
+                showSpeech(1);
+            } else if (action == 4) {
+                // Check if hungry
+                if (hunger > 60.0) {
+                    showSpeech(3);
+                    // Walk to food bowl if there's food
+                    if (foodInBowl != 0) {
+                        catTargetX = foodBowlX - 30.0;
+                        catTargetY = foodBowlY - 30.0;
+                        catState = 1;
+                    }
+                }
+            } else if (action == 5) {
+                // Check if tired
+                if (energy < 30.0) {
+                    showSpeech(4);
+                }
+            }
+        }
+    }
+
+    // State-specific behavior
+    if (catState == 1) {
+        // Walking to target
+        let dx = catTargetX - catX;
+        let dy = catTargetY - catY;
+        let dist = distance(catX, catY, catTargetX, catTargetY);
+
+        if (dist < 10.0) {
+            catState = 0;
+            catVX = 0.0;
+            catVY = 0.0;
+
+            // Check if near food bowl
+            if (foodInBowl != 0) {
+                let foodDist = distance(catX, catY, foodBowlX, foodBowlY);
+                if (foodDist < 80.0) {
+                    catState = 3;
+                    stateTimer = 3.0;
+                    showSpeech(6);
+                }
+            }
+        } else {
+            let speed: f32 = 100.0;
+            catVX = (dx / dist) * speed;
+            catVY = (dy / dist) * speed;
+            if (dx > 0.0) { catFacing = 1; }
+            else { catFacing = -1; }
+        }
+    }
+
+    if (catState == 2) {
+        // Sleeping
+        stateTimer = stateTimer - dt;
+        energy = energy + dt * 15.0;
+        if (energy > 100.0) { energy = 100.0; }
+        hunger = hunger + dt * 2.0;
+
+        if (stateTimer <= 0.0) {
+            catState = 0;
+            showSpeech(5);
+        }
+    }
+
+    if (catState == 3) {
+        // Eating
+        stateTimer = stateTimer - dt;
+        hunger = hunger - dt * 20.0;
+        if (hunger < 0.0) { hunger = 0.0; }
+        happiness = happiness + dt * 5.0;
+        if (happiness > 100.0) { happiness = 100.0; }
+
+        if (stateTimer <= 0.0) {
+            catState = 0;
+            foodInBowl = 0;
+            showSpeech(5);
+        }
+    }
+
+    if (catState == 4) {
+        // Playing
+        stateTimer = stateTimer - dt;
+        happiness = happiness + dt * 10.0;
+        energy = energy - dt * 5.0;
+        if (happiness > 100.0) { happiness = 100.0; }
+        if (energy < 0.0) { energy = 0.0; }
+
+        // Chase toy ball
+        if (toyBallActive != 0) {
+            catTargetX = toyBallX;
+            catTargetY = toyBallY;
+            let dx = catTargetX - catX;
+            let dy = catTargetY - catY;
+            let dist = distance(catX, catY, catTargetX, catTargetY);
+
+            if (dist > 30.0) {
+                let speed: f32 = 150.0;
+                catVX = (dx / dist) * speed;
+                catVY = (dy / dist) * speed;
+                if (dx > 0.0) { catFacing = 1; }
+                else { catFacing = -1; }
+            } else {
+                // Bat the ball!
+                toyBallVX = GetRandomValue(-200, 200);
+                toyBallVY = GetRandomValue(-150, 50);
+                catVX = 0.0;
+                catVY = 0.0;
+            }
+        }
+
+        if (stateTimer <= 0.0) {
+            catState = 0;
+            toyBallActive = 0;
+        }
+    }
+
+    if (catState == 5) {
+        // Being pet
+        stateTimer = stateTimer - dt;
+        happiness = happiness + dt * 15.0;
+        if (happiness > 100.0) { happiness = 100.0; }
+        purring = 1;
+
+        if (stateTimer <= 0.0) {
+            catState = 0;
+            purring = 0;
+        }
+    }
+
+    if (catState == 6) {
+        // Meowing
+        stateTimer = stateTimer - dt;
+        if (stateTimer <= 0.0) {
+            catState = 0;
+        }
+    }
+
+    // Update position
+    catX = catX + catVX * dt;
+    catY = catY + catVY * dt;
+
+    // Keep cat on screen
+    if (catX < 80.0) { catX = 80.0; }
+    if (catX > 720.0) { catX = 720.0; }
+    if (catY < 280.0) { catY = 280.0; }
+    if (catY > 480.0) { catY = 480.0; }
+
+    // Stat decay
+    hunger = hunger + dt * 1.5;
+    happiness = happiness - dt * 0.5;
+    if (catState != 2) {
+        energy = energy - dt * 0.8;
+    }
+
+    // Clamp stats
+    if (hunger > 100.0) { hunger = 100.0; }
+    if (hunger < 0.0) { hunger = 0.0; }
+    if (happiness > 100.0) { happiness = 100.0; }
+    if (happiness < 0.0) { happiness = 0.0; }
+    if (energy > 100.0) { energy = 100.0; }
+    if (energy < 0.0) { energy = 0.0; }
+}
+
+// Update animations
+fn updateAnimations(dt: f32) {
+    animFrame = animFrame + dt;
+
+    // Tail wagging
+    let wagSpeed: f32 = 3.0;
+    if (catState == 4) { wagSpeed = 8.0; }  // Faster when playing
+    if (catState == 5) { wagSpeed = 5.0; }  // Happy when pet
+    if (catState == 2) { wagSpeed = 0.5; }  // Slow when sleeping
+    tailWag = tailWag + dt * wagSpeed;
+    if (tailWag > 6.28) { tailWag = tailWag - 6.28; }
+
+    // Ear twitching
+    earTwitch = earTwitch - dt * 3.0;
+    if (earTwitch < 0.0) { earTwitch = 0.0; }
+    if (GetRandomValue(0, 100) < 2) {
+        earTwitch = 1.0;
+    }
+
+    // Blinking
+    blinkTimer = blinkTimer + dt;
+    if (blinkTimer > 3.0) {
+        blinkTimer = 0.0;
+        eyeBlink = 1.0;
+    }
+    if (eyeBlink > 0.0) {
+        eyeBlink = eyeBlink - dt * 5.0;
+    }
+
+    // Purr animation
+    if (purring != 0) {
+        purrTimer = purrTimer + dt * 5.0;
+    }
+
+    // Speech bubble timer
+    if (showBubble != 0) {
+        bubbleTimer = bubbleTimer - dt;
+        if (bubbleTimer <= 0.0) {
+            showBubble = 0;
+        }
+    }
+}
+
+// Update toy ball physics
+fn updateToyBall(dt: f32) {
+    if (toyBallActive != 0) {
+        toyBallX = toyBallX + toyBallVX * dt;
+        toyBallY = toyBallY + toyBallVY * dt;
+
+        // Gravity
+        toyBallVY = toyBallVY + 300.0 * dt;
+
+        // Bounce off walls
+        if (toyBallX < 30.0) { toyBallX = 30.0; toyBallVX = -toyBallVX * 0.7; }
+        if (toyBallX > 770.0) { toyBallX = 770.0; toyBallVX = -toyBallVX * 0.7; }
+        if (toyBallY > 500.0) { toyBallY = 500.0; toyBallVY = -toyBallVY * 0.6; }
+        if (toyBallY < 200.0) { toyBallY = 200.0; toyBallVY = -toyBallVY * 0.7; }
+
+        // Friction
+        toyBallVX = toyBallVX * 0.99;
+        if (toyBallVY > -5.0) {
+            if (toyBallVY < 5.0) {
+                if (toyBallY > 490.0) {
+                    toyBallVX = toyBallVX * 0.95;
+                }
+            }
+        }
+    }
+}
+
+InitWindow(screenWidth, screenHeight, "Virtual Cat - Hemlock + Raylib");
+SetTargetFPS(60);
+
+while (WindowShouldClose() == 0) {
+    let dt = GetFrameTime();
+    let mx = GetMouseX();
+    let my = GetMouseY();
+
+    // Button clicks
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) != 0) {
+        // Feed button
+        if (CheckCollisionPointRectXY(mx, my, feedBtnX, feedBtnY, 80.0, 50.0) != 0) {
+            foodInBowl = 1;
+        }
+        // Play button
+        if (CheckCollisionPointRectXY(mx, my, toyBtnX, toyBtnY, 80.0, 50.0) != 0) {
+            toyBallActive = 1;
+            toyBallX = mx;
+            toyBallY = 200.0;
+            toyBallVX = GetRandomValue(-100, 100);
+            toyBallVY = 50.0;
+            catState = 4;
+            stateTimer = 8.0;
+        }
+        // Sleep button
+        if (CheckCollisionPointRectXY(mx, my, sleepBtnX, sleepBtnY, 80.0, 50.0) != 0) {
+            if (catState != 2) {
+                catState = 2;
+                stateTimer = 5.0;
+                catVX = 0.0;
+                catVY = 0.0;
+            }
+        }
+
+        // Click on toy ball to throw it
+        if (toyBallActive != 0) {
+            if (CheckCollisionPointCircleXY(mx, my, toyBallX, toyBallY, 20.0) != 0) {
+                toyBallVX = GetRandomValue(-300, 300);
+                toyBallVY = GetRandomValue(-200, -50);
+            }
+        }
+
+        // Click on toy mouse
+        if (CheckCollisionPointRectXY(mx, my, toyMouseX - 25.0, toyMouseY - 15.0, 60.0, 30.0) != 0) {
+            toyMouseX = GetRandomValue(100, 700);
+            toyMouseY = GetRandomValue(350, 480);
+            catTargetX = toyMouseX;
+            catTargetY = toyMouseY;
+            catState = 1;
+            happiness = happiness + 5.0;
+        }
+    }
+
+    // Keyboard shortcuts
+    if (IsKeyPressed(KEY_ONE) != 0) { foodInBowl = 1; }
+    if (IsKeyPressed(KEY_TWO) != 0) {
+        toyBallActive = 1;
+        toyBallX = 400.0;
+        toyBallY = 200.0;
+        toyBallVX = GetRandomValue(-100, 100);
+        toyBallVY = 50.0;
+        catState = 4;
+        stateTimer = 8.0;
+    }
+    if (IsKeyPressed(KEY_THREE) != 0) {
+        if (catState != 2) {
+            catState = 2;
+            stateTimer = 5.0;
+            catVX = 0.0;
+            catVY = 0.0;
+        }
+    }
+
+    // Petting - click and drag on cat
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) != 0) {
+        if (CheckCollisionPointCircleXY(mx, my, catX, catY, 60.0) != 0) {
+            if (catState != 2) {
+                catState = 5;
+                stateTimer = 0.5;
+                if (petCount == 0) {
+                    showSpeech(2);
+                }
+                petCount = petCount + 1;
+                if (petCount > 30) {
+                    petCount = 0;
+                }
+            }
+        }
+    } else {
+        petCount = 0;
+        if (catState == 5) {
+            if (stateTimer <= 0.0) {
+                purring = 0;
+            }
+        }
+    }
+
+    // Update
+    updateCatAI(dt);
+    updateAnimations(dt);
+    updateToyBall(dt);
+
+    // Draw
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+
+    // Floor
+    DrawRectangle(0, 500, screenWidth, 100, BEIGE);
+    DrawLine(0, 500, screenWidth, 500, DARKGRAY);
+
+    // Wall decoration
+    DrawRectangle(600, 100, 120, 150, LIGHTGRAY);
+    DrawRectangleLines(600, 100, 120, 150, DARKGRAY);
+    DrawText("Home", 630, 160, 20, DARKGRAY);
+    DrawText("Sweet", 625, 185, 20, DARKGRAY);
+    DrawText("Home", 630, 210, 20, DARKGRAY);
+
+    // Draw items
+    drawToyMouse();
+    if (toyBallActive != 0) {
+        drawToyBall();
+    }
+    drawFoodBowl();
+
+    // Draw cat
+    drawCat();
+
+    // Draw speech bubble
+    drawBubble();
+
+    // Draw UI
+    drawStats();
+    drawButtons();
+
+    // Instructions
+    DrawText("Click and drag on kitty to pet!", screenWidth - 250, 520, 16, DARKGRAY);
+    DrawText("Click toys to play!", screenWidth - 250, 540, 16, DARKGRAY);
+    DrawText("FPS: " + GetFPS(), screenWidth - 80, 20, 16, GREEN);
+
+    // Cat mood indicator
+    let moodText = "Content";
+    let moodColor = GREEN;
+    if (hunger > 70.0) { moodText = "Hungry!"; moodColor = ORANGE; }
+    else if (happiness < 30.0) { moodText = "Sad"; moodColor = BLUE; }
+    else if (energy < 20.0) { moodText = "Tired"; moodColor = PURPLE; }
+    else if (happiness > 80.0) { moodText = "Happy!"; moodColor = LIME; }
+    else if (catState == 2) { moodText = "Sleeping"; moodColor = SKYBLUE; }
+    else if (catState == 5) { moodText = "Loves it!"; moodColor = PINK; }
+
+    DrawText("Mood: " + moodText, 20, 160, 18, moodColor);
+
+    EndDrawing();
+}
+
+CloseWindow();
+print("Bye bye kitty!");
