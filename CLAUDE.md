@@ -93,18 +93,35 @@ fn myFunc(x: i32) -> i32 {
 ### String Type
 Use `string` not `str` for string types.
 
-### DrawCircle/DrawEllipse Issues
-`DrawCircle` and `DrawEllipse` may not render correctly when positions are calculated from `f32` variables, even after casting to `i32`. Prefer using `DrawRectangle` and `DrawTriangle` for reliable rendering when working with dynamic positions.
+### DrawTriangle Does NOT Work - Use DrawTriangleFill Instead
+The raylib `DrawTriangle` function expects `Vector2` structs, but Hemlock's FFI cannot properly pass C structs. **Use `DrawTriangleFill` instead**, which is a helper function that uses low-level rlgl calls.
 
 ```hemlock
-// May not render:
-let x: f32 = 100.0;
-let ix: i32 = x;
-DrawCircle(ix, 200, 10.0, RED);
+// BAD - DrawTriangle won't render (Vector2 struct issue)
+DrawTriangle(100.0, 200.0, 50.0, 100.0, 150.0, 100.0, RED);
 
-// Reliable alternative:
-DrawRectangle(ix - 10, 190, 20, 20, RED);
+// GOOD - Use DrawTriangleFill helper
+DrawTriangleFill(100.0, 200.0, 150.0, 100.0, 50.0, 100.0, RED);
 ```
+
+**Important: Counter-Clockwise Winding Order Required**
+
+Filled triangles require vertices in counter-clockwise (CCW) order. In screen coordinates (Y increases downward), for a triangle with tip at bottom:
+- v1: bottom point
+- v2: top-right point
+- v3: top-left point
+
+```hemlock
+// CCW order for upward-pointing triangle (tip at top):
+// bottom-left, bottom-right, top
+DrawTriangleFill(50.0, 200.0, 150.0, 200.0, 100.0, 100.0, GREEN);
+
+// CCW order for downward-pointing triangle (tip at bottom):
+// bottom, top-right, top-left
+DrawTriangleFill(100.0, 200.0, 150.0, 100.0, 50.0, 100.0, BLUE);
+```
+
+Also available: `DrawTriangleOutline` for triangle outlines.
 
 ### Type Mixing in Arithmetic
 Be careful mixing `i32` and `f32` in arithmetic expressions passed directly to draw functions. Convert to the expected type first:

@@ -8,7 +8,7 @@ import {
     BeginDrawing, EndDrawing, ClearBackground,
     // Shapes
     DrawCircle, DrawCircleLines, DrawRectangle, DrawRectangleLines,
-    DrawTriangle, DrawTriangleLines, DrawLine,
+    DrawTriangleFill, DrawTriangleOutline, DrawLine,
     // Text
     DrawText, DrawFPS,
     // Input
@@ -131,10 +131,10 @@ while (WindowShouldClose() == 0) {
     DrawRectangle(r2x, r2y, r2w, r2h, r2Color);
     DrawText("Rect 2", r2x + 20, r2y + r2h + 10, 14, DARKGRAY);
 
-    // Draw Triangle (using f32 directly since DrawTriangle uses Vector2)
+    // Draw Triangle (CCW winding)
     let triColor = LIME;
     if (hitTriangle != 0) { triColor = RED; }
-    DrawTriangle(triAX, triAY, triBX, triBY, triCX, triCY, triColor);
+    DrawTriangleFill(triAX, triAY, triCX, triCY, triBX, triBY, triColor);
     DrawText("Triangle", 420, 510, 14, DARKGRAY);
 
     // Draw draggable circle at mouse position

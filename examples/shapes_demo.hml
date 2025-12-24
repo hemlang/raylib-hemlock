@@ -9,7 +9,7 @@ import {
     // Shapes
     DrawLine, DrawCircle, DrawCircleLines, DrawCircleGradient,
     DrawRectangle, DrawRectangleLines, DrawRectangleGradientV, DrawRectangleGradientH,
-    DrawTriangle, DrawTriangleLines,
+    DrawTriangleFill, DrawTriangleOutline,
     DrawPoly, DrawPolyLines,
     DrawRing, DrawRingLines,
     DrawEllipse, DrawEllipseLines,
@@ -49,8 +49,9 @@ while (WindowShouldClose() == 0) {
 
     // Row 2: Triangles and polygons
     DrawText("Triangles", 80, 200, 16, DARKGRAY);
-    DrawTriangle(100.0, 280.0, 60.0, 220.0, 140.0, 220.0, ORANGE);
-    DrawTriangleLines(200.0, 280.0, 160.0, 220.0, 240.0, 220.0, PURPLE);
+    // CCW winding: bottom, right-top, left-top
+    DrawTriangleFill(100.0, 280.0, 140.0, 220.0, 60.0, 220.0, ORANGE);
+    DrawTriangleOutline(200.0, 280.0, 240.0, 220.0, 160.0, 220.0, PURPLE);
 
     DrawText("Polygons", 320, 200, 16, DARKGRAY);
     // Pentagon
