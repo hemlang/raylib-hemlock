@@ -11,6 +11,37 @@
 //
 // The raylib library is automatically loaded when you import this module.
 // FFI symbols are resolved lazily - only when you actually call the function.
+//
+// ============================================================================
+// FFI LIMITATIONS
+// ============================================================================
+// Hemlock's FFI has some limitations when calling C functions:
+//
+// 1. STRUCT PARAMETERS: Functions that take Vector2, Rectangle, or other structs
+//    as parameters will NOT work correctly. The C ABI expects structs to be passed
+//    in a specific way that doesn't match passing individual values.
+//    Affected: DrawLineEx, DrawCircleSector, DrawRing, DrawRectangleRounded,
+//              DrawPoly, DrawTriangle (all Vector2/Rectangle params)
+//    Workaround: Use rlgl functions or the helper functions provided below.
+//
+// 2. STRUCT RETURNS: Functions that return structs by value (Texture2D, Sound,
+//    Music, Font, Image) are declared as returning `ptr`. This may not work
+//    correctly in all cases.
+//
+// 3. ARM64 FLOAT BUG: On Apple Silicon Macs, float parameters may not be passed
+//    correctly to C functions (they go in integer registers instead of FP regs).
+//    Affected: DrawCircle, DrawEllipse, and any function with float params.
+//    Workaround: Use DrawCircleFill/DrawCircleOutline helpers (pixel-based).
+//
+// 4. TYPE MAPPINGS:
+//    - C bool → Hemlock i32 (0 = false, non-zero = true)
+//    - C int → Hemlock i32
+//    - C float → Hemlock f32
+//    - C double → Hemlock f64
+//    - C const char* → Hemlock string
+//    - C Color (struct) → Hemlock u32 (RGBA packed)
+//    - C struct returns → Hemlock ptr (may not work correctly)
+// ============================================================================
 
 // Load raylib library (cross-platform)
 import { RAYLIB_LOADED } from "./raylib_loader.hml";
@@ -18,17 +49,21 @@ import { RAYLIB_LOADED } from "./raylib_loader.hml";
 // ============================================================================
 // Core - Window/Context
 // ============================================================================
+// C bool return types are mapped to i32 (0 = false, non-zero = true)
 
 export extern fn InitWindow(width: i32, height: i32, title: string): void;
 export extern fn CloseWindow(): void;
-export extern fn WindowShouldClose(): i32;
-export extern fn IsWindowReady(): i32;
-export extern fn IsWindowFullscreen(): i32;
-export extern fn IsWindowHidden(): i32;
-export extern fn IsWindowMinimized(): i32;
-export extern fn IsWindowMaximized(): i32;
-export extern fn IsWindowFocused(): i32;
-export extern fn IsWindowResized(): i32;
+export extern fn WindowShouldClose(): i32;  // C: bool
+export extern fn IsWindowReady(): i32;       // C: bool
+export extern fn IsWindowFullscreen(): i32;  // C: bool
+export extern fn IsWindowHidden(): i32;      // C: bool
+export extern fn IsWindowMinimized(): i32;   // C: bool
+export extern fn IsWindowMaximized(): i32;   // C: bool
+export extern fn IsWindowFocused(): i32;     // C: bool
+export extern fn IsWindowResized(): i32;     // C: bool
+export extern fn IsWindowState(flag: u32): i32;    // C: bool - Check if specific window flag is enabled
+export extern fn SetWindowState(flags: u32): void; // Set window configuration state using flags
+export extern fn ClearWindowState(flags: u32): void; // Clear window configuration state flags
 export extern fn SetWindowTitle(title: string): void;
 export extern fn SetWindowPosition(x: i32, y: i32): void;
 export extern fn SetWindowSize(width: i32, height: i32): void;
@@ -43,12 +78,17 @@ export extern fn GetCurrentMonitor(): i32;
 export extern fn GetMonitorWidth(monitor: i32): i32;
 export extern fn GetMonitorHeight(monitor: i32): i32;
 export extern fn GetMonitorRefreshRate(monitor: i32): i32;
+export extern fn GetMonitorPhysicalWidth(monitor: i32): i32;
+export extern fn GetMonitorPhysicalHeight(monitor: i32): i32;
+export extern fn GetMonitorName(monitor: i32): string;  // C: const char*
 export extern fn ToggleFullscreen(): void;
 export extern fn ToggleBorderlessWindowed(): void;
 export extern fn MaximizeWindow(): void;
 export extern fn MinimizeWindow(): void;
 export extern fn RestoreWindow(): void;
 export extern fn SetWindowOpacity(opacity: f32): void;
+export extern fn SetWindowFocused(): void;
+export extern fn SetWindowIcon(image: ptr): void;  // Takes Image - may not work correctly
 export extern fn SetTargetFPS(fps: i32): void;
 export extern fn GetFPS(): i32;
 export extern fn GetFrameTime(): f32;
@@ -90,55 +130,63 @@ export let RL_QUADS = 7;
 // ============================================================================
 // Core - Input: Keyboard
 // ============================================================================
+// C bool return types are mapped to i32 (0 = false, non-zero = true)
 
-export extern fn IsKeyPressed(key: i32): i32;
-export extern fn IsKeyPressedRepeat(key: i32): i32;
-export extern fn IsKeyDown(key: i32): i32;
-export extern fn IsKeyReleased(key: i32): i32;
-export extern fn IsKeyUp(key: i32): i32;
-export extern fn GetKeyPressed(): i32;
-export extern fn GetCharPressed(): i32;
+export extern fn IsKeyPressed(key: i32): i32;       // C: bool
+export extern fn IsKeyPressedRepeat(key: i32): i32; // C: bool
+export extern fn IsKeyDown(key: i32): i32;          // C: bool
+export extern fn IsKeyReleased(key: i32): i32;      // C: bool
+export extern fn IsKeyUp(key: i32): i32;            // C: bool
+export extern fn GetKeyPressed(): i32;   // Get key pressed (keycode), call multiple times for queued keys
+export extern fn GetCharPressed(): i32;  // Get char pressed (unicode), call multiple times for queued chars
+export extern fn GetKeyName(key: i32): string;  // C: const char* - Get name of key
 export extern fn SetExitKey(key: i32): void;
 
 // ============================================================================
 // Core - Input: Mouse
 // ============================================================================
+// C bool return types are mapped to i32 (0 = false, non-zero = true)
+// NOTE: GetMousePosition/GetMouseDelta return Vector2 structs - use GetMouseX/GetMouseY instead
 
-export extern fn IsMouseButtonPressed(button: i32): i32;
-export extern fn IsMouseButtonDown(button: i32): i32;
-export extern fn IsMouseButtonReleased(button: i32): i32;
-export extern fn IsMouseButtonUp(button: i32): i32;
+export extern fn IsMouseButtonPressed(button: i32): i32;   // C: bool
+export extern fn IsMouseButtonDown(button: i32): i32;      // C: bool
+export extern fn IsMouseButtonReleased(button: i32): i32;  // C: bool
+export extern fn IsMouseButtonUp(button: i32): i32;        // C: bool
 export extern fn GetMouseX(): i32;
 export extern fn GetMouseY(): i32;
 export extern fn GetMouseWheelMove(): f32;
 export extern fn SetMousePosition(x: i32, y: i32): void;
 export extern fn SetMouseOffset(offsetX: i32, offsetY: i32): void;
 export extern fn SetMouseScale(scaleX: f32, scaleY: f32): void;
+export extern fn SetMouseCursor(cursor: i32): void;  // Set mouse cursor (MOUSE_CURSOR_* constants)
 export extern fn ShowCursor(): void;
 export extern fn HideCursor(): void;
-export extern fn IsCursorHidden(): i32;
+export extern fn IsCursorHidden(): i32;    // C: bool
 export extern fn EnableCursor(): void;
 export extern fn DisableCursor(): void;
-export extern fn IsCursorOnScreen(): i32;
+export extern fn IsCursorOnScreen(): i32;  // C: bool
 
 // ============================================================================
 // Core - Input: Gamepad
 // ============================================================================
+// C bool return types are mapped to i32 (0 = false, non-zero = true)
 
-export extern fn IsGamepadAvailable(gamepad: i32): i32;
-export extern fn GetGamepadName(gamepad: i32): string;
-export extern fn IsGamepadButtonPressed(gamepad: i32, button: i32): i32;
-export extern fn IsGamepadButtonDown(gamepad: i32, button: i32): i32;
-export extern fn IsGamepadButtonReleased(gamepad: i32, button: i32): i32;
-export extern fn IsGamepadButtonUp(gamepad: i32, button: i32): i32;
+export extern fn IsGamepadAvailable(gamepad: i32): i32;           // C: bool
+export extern fn GetGamepadName(gamepad: i32): string;            // C: const char*
+export extern fn IsGamepadButtonPressed(gamepad: i32, button: i32): i32;   // C: bool
+export extern fn IsGamepadButtonDown(gamepad: i32, button: i32): i32;      // C: bool
+export extern fn IsGamepadButtonReleased(gamepad: i32, button: i32): i32;  // C: bool
+export extern fn IsGamepadButtonUp(gamepad: i32, button: i32): i32;        // C: bool
 export extern fn GetGamepadButtonPressed(): i32;
 export extern fn GetGamepadAxisCount(gamepad: i32): i32;
 export extern fn GetGamepadAxisMovement(gamepad: i32, axis: i32): f32;
 export extern fn SetGamepadMappings(mappings: string): i32;
+export extern fn SetGamepadVibration(gamepad: i32, leftMotor: f32, rightMotor: f32, duration: f32): void;
 
 // ============================================================================
 // Core - Input: Touch
 // ============================================================================
+// NOTE: GetTouchPosition returns Vector2 - use GetTouchX/GetTouchY instead
 
 export extern fn GetTouchX(): i32;
 export extern fn GetTouchY(): i32;
@@ -148,33 +196,47 @@ export extern fn GetTouchPointCount(): i32;
 // ============================================================================
 // Core - Gestures
 // ============================================================================
+// C bool return types are mapped to i32 (0 = false, non-zero = true)
 
 export extern fn SetGesturesEnabled(flags: u32): void;
-export extern fn IsGestureDetected(gesture: u32): i32;
+export extern fn IsGestureDetected(gesture: u32): i32;  // C: bool
 export extern fn GetGestureDetected(): i32;
 export extern fn GetGestureHoldDuration(): f32;
 export extern fn GetGestureDragAngle(): f32;
 export extern fn GetGesturePinchAngle(): f32;
 
 // ============================================================================
+// Core - Logging
+// ============================================================================
+
+export extern fn TraceLog(logLevel: i32, text: string): void;
+export extern fn SetTraceLogLevel(logLevel: i32): void;
+
+// ============================================================================
 // Shapes - Basic Drawing
 // ============================================================================
+// NOTE: Color is passed as u32 (RGBA packed) which matches raylib's Color struct layout
+// WARNING: Functions taking float radius on ARM64 may not work correctly due to FFI float bug
+// Use DrawCircleFill/DrawCircleOutline helpers instead (defined below)
 
 export extern fn DrawPixel(posX: i32, posY: i32, color: u32): void;
 export extern fn DrawLine(startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, color: u32): void;
-export extern fn DrawLineEx(startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, thick: f32, color: u32): void;
-export extern fn DrawCircle(centerX: i32, centerY: i32, radius: f32, color: u32): void;
-export extern fn DrawCircleGradient(centerX: i32, centerY: i32, radius: f32, color1: u32, color2: u32): void;
-export extern fn DrawCircleLines(centerX: i32, centerY: i32, radius: f32, color: u32): void;
-export extern fn DrawEllipse(centerX: i32, centerY: i32, radiusH: f32, radiusV: f32, color: u32): void;
-export extern fn DrawEllipseLines(centerX: i32, centerY: i32, radiusH: f32, radiusV: f32, color: u32): void;
-export extern fn DrawRectangle(posX: i32, posY: i32, width: i32, height: i32, color: u32): void;
+// NOTE: DrawLineEx in C takes Vector2 structs - this signature won't work correctly
+// export extern fn DrawLineEx(startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, thick: f32, color: u32): void;
+export extern fn DrawCircle(centerX: i32, centerY: i32, radius: f32, color: u32): void;  // May not work on ARM64
+export extern fn DrawCircleGradient(centerX: i32, centerY: i32, radius: f32, color1: u32, color2: u32): void;  // May not work on ARM64
+export extern fn DrawCircleLines(centerX: i32, centerY: i32, radius: f32, color: u32): void;  // May not work on ARM64
+export extern fn DrawCircleLinesV(centerX: f32, centerY: f32, radius: f32, color: u32): void;  // Vector2 center - may not work
+export extern fn DrawEllipse(centerX: i32, centerY: i32, radiusH: f32, radiusV: f32, color: u32): void;  // May not work on ARM64
+export extern fn DrawEllipseLines(centerX: i32, centerY: i32, radiusH: f32, radiusV: f32, color: u32): void;  // May not work on ARM64
+export extern fn DrawRectangle(posX: i32, posY: i32, width: i32, height: i32, color: u32): void;  // Works - all int params
 export extern fn DrawRectangleGradientV(posX: i32, posY: i32, width: i32, height: i32, color1: u32, color2: u32): void;
 export extern fn DrawRectangleGradientH(posX: i32, posY: i32, width: i32, height: i32, color1: u32, color2: u32): void;
-export extern fn DrawRectangleLines(posX: i32, posY: i32, width: i32, height: i32, color: u32): void;
-// NOTE: DrawTriangle takes Vector2 (float pairs) in C, so we use f32 here
-export extern fn DrawTriangle(v1x: f32, v1y: f32, v2x: f32, v2y: f32, v3x: f32, v3y: f32, color: u32): void;
-export extern fn DrawTriangleLines(v1x: f32, v1y: f32, v2x: f32, v2y: f32, v3x: f32, v3y: f32, color: u32): void;
+export extern fn DrawRectangleLines(posX: i32, posY: i32, width: i32, height: i32, color: u32): void;  // Works - all int params
+// NOTE: DrawTriangle in C takes Vector2 structs, not individual floats - won't work correctly
+// Use DrawTriangleFill/DrawTriangleOutline helpers instead (defined below using rlgl)
+// export extern fn DrawTriangle(v1x: f32, v1y: f32, v2x: f32, v2y: f32, v3x: f32, v3y: f32, color: u32): void;
+// export extern fn DrawTriangleLines(v1x: f32, v1y: f32, v2x: f32, v2y: f32, v3x: f32, v3y: f32, color: u32): void;
 
 // ============================================================================
 // Text - Drawing
@@ -214,23 +276,33 @@ export extern fn GetClipboardText(): string;
 // ============================================================================
 // Shapes - Advanced Drawing
 // ============================================================================
+// WARNING: These functions use Vector2/Rectangle structs in C - signatures are INCORRECT
+// The C API expects struct parameters, but we're passing individual values.
+// These are commented out to prevent silent failures. Use helper functions or rlgl instead.
 
-export extern fn DrawCircleSector(centerX: i32, centerY: i32, radius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
-export extern fn DrawCircleSectorLines(centerX: i32, centerY: i32, radius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
-export extern fn DrawRing(centerX: i32, centerY: i32, innerRadius: f32, outerRadius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
-export extern fn DrawRingLines(centerX: i32, centerY: i32, innerRadius: f32, outerRadius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
-export extern fn DrawRectangleRounded(posX: i32, posY: i32, width: i32, height: i32, roundness: f32, segments: i32, color: u32): void;
-export extern fn DrawRectangleRoundedLines(posX: i32, posY: i32, width: i32, height: i32, roundness: f32, segments: i32, color: u32): void;
-export extern fn DrawRectangleLinesEx(posX: i32, posY: i32, width: i32, height: i32, lineThick: f32, color: u32): void;
-export extern fn DrawPoly(centerX: i32, centerY: i32, sides: i32, radius: f32, rotation: f32, color: u32): void;
-export extern fn DrawPolyLines(centerX: i32, centerY: i32, sides: i32, radius: f32, rotation: f32, color: u32): void;
-export extern fn DrawPolyLinesEx(centerX: i32, centerY: i32, sides: i32, radius: f32, rotation: f32, lineThick: f32, color: u32): void;
+// NOTE: In C, these take Vector2 center and float parameters - won't work with this signature
+// export extern fn DrawCircleSector(centerX: i32, centerY: i32, radius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
+// export extern fn DrawCircleSectorLines(centerX: i32, centerY: i32, radius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
+// export extern fn DrawRing(centerX: i32, centerY: i32, innerRadius: f32, outerRadius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
+// export extern fn DrawRingLines(centerX: i32, centerY: i32, innerRadius: f32, outerRadius: f32, startAngle: f32, endAngle: f32, segments: i32, color: u32): void;
+
+// NOTE: In C, these take Rectangle struct - won't work with this signature
+// export extern fn DrawRectangleRounded(posX: i32, posY: i32, width: i32, height: i32, roundness: f32, segments: i32, color: u32): void;
+// export extern fn DrawRectangleRoundedLines(posX: i32, posY: i32, width: i32, height: i32, roundness: f32, segments: i32, color: u32): void;
+// export extern fn DrawRectangleLinesEx(posX: i32, posY: i32, width: i32, height: i32, lineThick: f32, color: u32): void;
+
+// NOTE: In C, these take Vector2 center - won't work with this signature
+// export extern fn DrawPoly(centerX: i32, centerY: i32, sides: i32, radius: f32, rotation: f32, color: u32): void;
+// export extern fn DrawPolyLines(centerX: i32, centerY: i32, sides: i32, radius: f32, rotation: f32, color: u32): void;
+// export extern fn DrawPolyLinesEx(centerX: i32, centerY: i32, sides: i32, radius: f32, rotation: f32, lineThick: f32, color: u32): void;
 
 // ============================================================================
 // Shapes - Splines
 // ============================================================================
+// WARNING: DrawLineBezier takes Vector2 structs in C - commented out
 
-export extern fn DrawLineBezier(startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, thick: f32, color: u32): void;
+// NOTE: In C, takes Vector2 structs - won't work with this signature
+// export extern fn DrawLineBezier(startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, thick: f32, color: u32): void;
 
 // ============================================================================
 // Text - Extended
@@ -251,43 +323,46 @@ export extern fn GetMasterVolume(): f32;
 // ============================================================================
 // Textures - Loading and Drawing
 // ============================================================================
-// Note: Texture2D is passed as an opaque handle (pointer)
-// These functions assume the FFI can handle struct-by-value or pointer semantics
+// WARNING: Texture2D in C is a struct (20 bytes) returned by value.
+// The `ptr` type here is a workaround - behavior may be undefined.
+// DrawTexture with int position works. DrawTextureV/Ex/Rec/Pro use Vector2/Rectangle - won't work.
 
-export extern fn LoadTexture(fileName: string): ptr;
+export extern fn LoadTexture(fileName: string): ptr;  // C: Texture2D (struct by value)
 export extern fn UnloadTexture(texture: ptr): void;
-export extern fn DrawTexture(texture: ptr, posX: i32, posY: i32, tint: u32): void;
-export extern fn DrawTextureV(texture: ptr, posX: f32, posY: f32, tint: u32): void;
-export extern fn DrawTextureEx(texture: ptr, posX: f32, posY: f32, rotation: f32, scale: f32, tint: u32): void;
-export extern fn DrawTextureRec(texture: ptr, srcX: f32, srcY: f32, srcW: f32, srcH: f32, posX: f32, posY: f32, tint: u32): void;
-export extern fn DrawTexturePro(texture: ptr, srcX: f32, srcY: f32, srcW: f32, srcH: f32, destX: f32, destY: f32, destW: f32, destH: f32, originX: f32, originY: f32, rotation: f32, tint: u32): void;
+export extern fn IsTextureValid(texture: ptr): i32;   // C: bool - Check if texture is valid
+export extern fn DrawTexture(texture: ptr, posX: i32, posY: i32, tint: u32): void;  // Works - int params
+// NOTE: These use Vector2/Rectangle structs in C - won't work correctly
+// export extern fn DrawTextureV(texture: ptr, posX: f32, posY: f32, tint: u32): void;
+// export extern fn DrawTextureEx(texture: ptr, posX: f32, posY: f32, rotation: f32, scale: f32, tint: u32): void;
+// export extern fn DrawTextureRec(texture: ptr, srcX: f32, srcY: f32, srcW: f32, srcH: f32, posX: f32, posY: f32, tint: u32): void;
+// export extern fn DrawTexturePro(texture: ptr, srcX: f32, srcY: f32, srcW: f32, srcH: f32, destX: f32, destY: f32, destW: f32, destH: f32, originX: f32, originY: f32, rotation: f32, tint: u32): void;
 
-// Texture properties (get dimensions from loaded texture)
-export extern fn GetTextureWidth(texture: ptr): i32;
-export extern fn GetTextureHeight(texture: ptr): i32;
-
-// Texture configuration
+// Texture configuration - NOTE: SetTextureFilter/SetTextureWrap take Texture2D by value in C
 export extern fn SetTextureFilter(texture: ptr, filter: i32): void;
 export extern fn SetTextureWrap(texture: ptr, wrap: i32): void;
 export extern fn GenTextureMipmaps(texture: ptr): void;
 
 // Render texture (for off-screen rendering)
-export extern fn LoadRenderTexture(width: i32, height: i32): ptr;
+// NOTE: RenderTexture2D is a struct returned by value in C
+export extern fn LoadRenderTexture(width: i32, height: i32): ptr;  // C: RenderTexture2D (struct)
 export extern fn UnloadRenderTexture(target: ptr): void;
+export extern fn IsRenderTextureValid(target: ptr): i32;  // C: bool
 export extern fn BeginTextureMode(target: ptr): void;
 export extern fn EndTextureMode(): void;
 
 // ============================================================================
 // Audio - Sound Loading and Playing
 // ============================================================================
+// WARNING: Sound in C is a struct returned by value. The `ptr` type is a workaround.
 
-export extern fn LoadSound(fileName: string): ptr;
+export extern fn LoadSound(fileName: string): ptr;  // C: Sound (struct by value)
 export extern fn UnloadSound(sound: ptr): void;
+export extern fn IsSoundValid(sound: ptr): i32;     // C: bool - Check if sound is valid
 export extern fn PlaySound(sound: ptr): void;
 export extern fn StopSound(sound: ptr): void;
 export extern fn PauseSound(sound: ptr): void;
 export extern fn ResumeSound(sound: ptr): void;
-export extern fn IsSoundPlaying(sound: ptr): i32;
+export extern fn IsSoundPlaying(sound: ptr): i32;   // C: bool
 export extern fn SetSoundVolume(sound: ptr, volume: f32): void;
 export extern fn SetSoundPitch(sound: ptr, pitch: f32): void;
 export extern fn SetSoundPan(sound: ptr, pan: f32): void;
@@ -295,49 +370,59 @@ export extern fn SetSoundPan(sound: ptr, pan: f32): void;
 // ============================================================================
 // Audio - Music Streaming
 // ============================================================================
+// WARNING: Music in C is a struct returned by value. The `ptr` type is a workaround.
 
-export extern fn LoadMusicStream(fileName: string): ptr;
+export extern fn LoadMusicStream(fileName: string): ptr;  // C: Music (struct by value)
 export extern fn UnloadMusicStream(music: ptr): void;
+export extern fn IsMusicValid(music: ptr): i32;           // C: bool - Check if music is valid
 export extern fn PlayMusicStream(music: ptr): void;
 export extern fn StopMusicStream(music: ptr): void;
 export extern fn PauseMusicStream(music: ptr): void;
 export extern fn ResumeMusicStream(music: ptr): void;
 export extern fn UpdateMusicStream(music: ptr): void;
-export extern fn IsMusicStreamPlaying(music: ptr): i32;
+export extern fn IsMusicStreamPlaying(music: ptr): i32;   // C: bool
 export extern fn SetMusicVolume(music: ptr, volume: f32): void;
 export extern fn SetMusicPitch(music: ptr, pitch: f32): void;
 export extern fn SetMusicPan(music: ptr, pan: f32): void;
 export extern fn GetMusicTimeLength(music: ptr): f32;
 export extern fn GetMusicTimePlayed(music: ptr): f32;
 export extern fn SeekMusicStream(music: ptr, position: f32): void;
-export extern fn SetMusicLooping(music: ptr, looping: i32): void;
+export extern fn SetMusicLooping(music: ptr, looping: i32): void;  // C: looping is bool
 
 // ============================================================================
 // Text - Font Loading and Drawing
 // ============================================================================
-// Note: Font is passed as an opaque handle (pointer)
+// WARNING: Font in C is a struct returned by value. The `ptr` type is a workaround.
+// DrawTextEx/DrawTextPro take Vector2 for position - won't work correctly.
 
-export extern fn LoadFont(fileName: string): ptr;
+export extern fn LoadFont(fileName: string): ptr;  // C: Font (struct by value)
 export extern fn LoadFontEx(fileName: string, fontSize: i32, codepoints: ptr, codepointCount: i32): ptr;
 export extern fn UnloadFont(font: ptr): void;
-export extern fn DrawTextEx(font: ptr, text: string, posX: f32, posY: f32, fontSize: f32, spacing: f32, tint: u32): void;
-export extern fn DrawTextPro(font: ptr, text: string, posX: f32, posY: f32, originX: f32, originY: f32, rotation: f32, fontSize: f32, spacing: f32, tint: u32): void;
-export extern fn MeasureTextEx(font: ptr, text: string, fontSize: f32, spacing: f32): f32;
-export extern fn GetFontDefault(): ptr;
-export extern fn IsFontValid(font: ptr): i32;
+export extern fn IsFontValid(font: ptr): i32;  // C: bool - renamed from IsFontReady
+export extern fn GetFontDefault(): ptr;        // C: Font (struct by value)
+
+// NOTE: These use Vector2 for position in C - won't work with expanded params
+// Use DrawText (default font) instead, which takes int position
+// export extern fn DrawTextEx(font: ptr, text: string, posX: f32, posY: f32, fontSize: f32, spacing: f32, tint: u32): void;
+// export extern fn DrawTextPro(font: ptr, text: string, posX: f32, posY: f32, originX: f32, originY: f32, rotation: f32, fontSize: f32, spacing: f32, tint: u32): void;
+
+// NOTE: MeasureTextEx returns Vector2 in C - this signature is incorrect
+// export extern fn MeasureTextEx(font: ptr, text: string, fontSize: f32, spacing: f32): f32;
 
 // ============================================================================
 // Images - Loading and Manipulation
 // ============================================================================
-// Note: Image is passed as an opaque handle (pointer)
+// WARNING: Image in C is a struct returned by value. The `ptr` type is a workaround.
+// Many Image functions take Image* (pointer to image) for in-place modification.
 
-export extern fn LoadImage(fileName: string): ptr;
+export extern fn LoadImage(fileName: string): ptr;  // C: Image (struct by value)
 export extern fn LoadImageRaw(fileName: string, width: i32, height: i32, format: i32, headerSize: i32): ptr;
 export extern fn LoadImageFromMemory(fileType: string, fileData: ptr, dataSize: i32): ptr;
 export extern fn UnloadImage(image: ptr): void;
-export extern fn ExportImage(image: ptr, fileName: string): i32;
+export extern fn IsImageValid(image: ptr): i32;   // C: bool - Check if image is valid
+export extern fn ExportImage(image: ptr, fileName: string): i32;  // C: bool
 
-// Image generation
+// Image generation - all return Image struct by value
 export extern fn GenImageColor(width: i32, height: i32, color: u32): ptr;
 export extern fn GenImageGradientLinear(width: i32, height: i32, direction: i32, start: u32, end: u32): ptr;
 export extern fn GenImageGradientRadial(width: i32, height: i32, density: f32, inner: u32, outer: u32): ptr;
@@ -345,12 +430,11 @@ export extern fn GenImageChecked(width: i32, height: i32, checksX: i32, checksY:
 export extern fn GenImageWhiteNoise(width: i32, height: i32, factor: f32): ptr;
 export extern fn GenImagePerlinNoise(width: i32, height: i32, offsetX: i32, offsetY: i32, scale: f32): ptr;
 
-// Image manipulation
-export extern fn ImageCopy(image: ptr): ptr;
-export extern fn ImageFromImage(image: ptr, x: i32, y: i32, width: i32, height: i32): ptr;
+// Image manipulation - NOTE: In C, these take Image* (pointer) for in-place modification
+// The signatures here may not work correctly
+export extern fn ImageCopy(image: ptr): ptr;  // Returns new Image
 export extern fn ImageResize(image: ptr, newWidth: i32, newHeight: i32): void;
 export extern fn ImageResizeNN(image: ptr, newWidth: i32, newHeight: i32): void;
-export extern fn ImageCrop(image: ptr, x: i32, y: i32, width: i32, height: i32): void;
 export extern fn ImageFlipVertical(image: ptr): void;
 export extern fn ImageFlipHorizontal(image: ptr): void;
 export extern fn ImageRotate(image: ptr, degrees: i32): void;
@@ -362,7 +446,11 @@ export extern fn ImageColorGrayscale(image: ptr): void;
 export extern fn ImageColorContrast(image: ptr, contrast: f32): void;
 export extern fn ImageColorBrightness(image: ptr, brightness: i32): void;
 
-// Image drawing
+// NOTE: ImageFromImage and ImageCrop take Rectangle in C - signatures incorrect
+// export extern fn ImageFromImage(image: ptr, x: i32, y: i32, width: i32, height: i32): ptr;
+// export extern fn ImageCrop(image: ptr, x: i32, y: i32, width: i32, height: i32): void;
+
+// Image drawing - these work with int parameters
 export extern fn ImageClearBackground(image: ptr, color: u32): void;
 export extern fn ImageDrawPixel(image: ptr, posX: i32, posY: i32, color: u32): void;
 export extern fn ImageDrawLine(image: ptr, startX: i32, startY: i32, endX: i32, endY: i32, color: u32): void;
@@ -371,34 +459,32 @@ export extern fn ImageDrawRectangle(image: ptr, posX: i32, posY: i32, width: i32
 export extern fn ImageDrawText(image: ptr, text: string, posX: i32, posY: i32, fontSize: i32, color: u32): void;
 
 // Image to texture
-export extern fn LoadTextureFromImage(image: ptr): ptr;
-
-// Image properties
-export extern fn GetImageWidth(image: ptr): i32;
-export extern fn GetImageHeight(image: ptr): i32;
+export extern fn LoadTextureFromImage(image: ptr): ptr;  // C: Texture2D (struct by value)
 
 // ============================================================================
 // File I/O Utilities
 // ============================================================================
+// C bool return types are mapped to i32 (0 = false, non-zero = true)
 
-export extern fn FileExists(fileName: string): i32;
-export extern fn DirectoryExists(dirPath: string): i32;
-export extern fn IsFileExtension(fileName: string, ext: string): i32;
-export extern fn GetFileExtension(fileName: string): string;
-export extern fn GetFileName(filePath: string): string;
-export extern fn GetFileNameWithoutExt(filePath: string): string;
-export extern fn GetDirectoryPath(filePath: string): string;
-export extern fn GetPrevDirectoryPath(dirPath: string): string;
-export extern fn GetWorkingDirectory(): string;
-export extern fn ChangeDirectory(dir: string): i32;
+export extern fn FileExists(fileName: string): i32;           // C: bool
+export extern fn DirectoryExists(dirPath: string): i32;       // C: bool
+export extern fn IsFileExtension(fileName: string, ext: string): i32;  // C: bool
+export extern fn GetFileExtension(fileName: string): string;  // C: const char*
+export extern fn GetFileName(filePath: string): string;       // C: const char*
+export extern fn GetFileNameWithoutExt(filePath: string): string;  // C: const char*
+export extern fn GetDirectoryPath(filePath: string): string;  // C: const char*
+export extern fn GetPrevDirectoryPath(dirPath: string): string;  // C: const char*
+export extern fn GetWorkingDirectory(): string;               // C: const char*
+export extern fn ChangeDirectory(dir: string): i32;           // C: bool
 export extern fn GetFileLength(fileName: string): i32;
-export extern fn GetFileModTime(fileName: string): i64;
-export extern fn IsPathFile(path: string): i32;
+export extern fn GetFileModTime(fileName: string): i64;       // C: long
+export extern fn IsPathFile(path: string): i32;               // C: bool
+export extern fn GetApplicationDirectory(): string;           // C: const char*
 
 // Text file I/O
-export extern fn LoadFileText(fileName: string): string;
+export extern fn LoadFileText(fileName: string): string;      // C: char* (must be freed)
 export extern fn UnloadFileText(text: string): void;
-export extern fn SaveFileText(fileName: string, text: string): i32;
+export extern fn SaveFileText(fileName: string, text: string): i32;  // C: bool
 
 // ============================================================================
 // Texture Filter/Wrap Constants
