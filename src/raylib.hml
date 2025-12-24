@@ -1,8 +1,8 @@
-// raylib-hemlock: Raylib bindings for Hemlock
+// raylock: Raylib bindings for Hemlock
 // Uses Hemlock's FFI to call raylib C functions
 //
 // Usage:
-//   import { InitWindow, CloseWindow, DrawText, RED, KEY_ESCAPE } from "./raylib.hml";
+//   import { InitWindow, CloseWindow, DrawText, RED, KEY_ESCAPE } from "hemlang/raylock";
 //
 // This file exports:
 //   - All raylib FFI functions (export extern fn)

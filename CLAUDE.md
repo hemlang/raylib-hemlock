@@ -1,16 +1,36 @@
 # Claude Instructions for raylock
 
-## Getting Hemlock
+## Installation
 
-This project requires the Hemlock programming language interpreter. To get Hemlock:
+Install raylock as a Hemlock module:
 
 ```bash
-# Clone the Hemlock repository
-git clone https://github.com/hemlang/hemlock.git
+hpm install hemlang/raylock
+```
 
-# Build Hemlock (follow instructions in the hemlock repo)
-cd hemlock
-# Build commands depend on the hemlock project structure - check its README
+**Prerequisites:**
+- Hemlock interpreter installed and in PATH
+- raylib library installed on the system
+
+## Usage
+
+```hemlock
+import {
+    InitWindow, CloseWindow, WindowShouldClose,
+    BeginDrawing, EndDrawing, ClearBackground,
+    DrawText, RED, RAYWHITE
+} from "hemlang/raylock";
+
+InitWindow(800, 450, "Hello Raylock");
+
+while (WindowShouldClose() == 0) {
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+    DrawText("Hello from raylock!", 190, 200, 20, RED);
+    EndDrawing();
+}
+
+CloseWindow();
 ```
 
 ## Project Overview
@@ -19,9 +39,7 @@ This is a raylib bindings library for Hemlock using FFI. The main bindings are i
 
 ## Running Examples
 
-Examples require:
-1. Hemlock interpreter installed and in PATH
-2. raylib library installed on the system
+Examples use relative imports for development. To run them:
 
 ```bash
 hemlock examples/hello_window.hml
@@ -37,8 +55,10 @@ hemlock examples/animation.hml
 
 ## Key Files
 
-- `src/raylib_loader.hml` - Cross-platform raylib library loader (macOS + Linux)
+- `package.json` - hpm module manifest
+- `src/index.hml` - Module entry point (re-exports raylib.hml)
 - `src/raylib.hml` - Core raylib FFI bindings and utility functions
+- `src/raylib_loader.hml` - Cross-platform raylib library loader (macOS + Linux)
 - `examples/` - Example Hemlock programs using raylib
 - `tests/` - Test suite for utility functions
 

@@ -1,0 +1,24 @@
+{
+  "name": "hemlang/raylock",
+  "version": "0.1.0",
+  "description": "Raylib bindings for Hemlock using FFI",
+  "author": "hemlang",
+  "license": "MIT",
+  "repository": "https://github.com/hemlang/raylock",
+  "main": "src/index.hml",
+  "keywords": [
+    "raylib",
+    "graphics",
+    "gamedev",
+    "ffi",
+    "gui"
+  ],
+  "native": {
+    "requires": ["raylib"]
+  },
+  "files": [
+    "src/",
+    "LICENSE",
+    "README.md"
+  ]
+}
