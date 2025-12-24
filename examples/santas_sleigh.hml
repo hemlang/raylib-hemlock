@@ -1,0 +1,560 @@
+// Santa's Sleigh - Side-scrolling obstacle avoidance game
+// Controls: Up/Down or W/S to move sleigh, R to restart
+// Avoid obstacles, collect presents for bonus points!
+
+import {
+    InitWindow, CloseWindow, WindowShouldClose, SetTargetFPS, GetFPS, GetFrameTime,
+    BeginDrawing, EndDrawing, ClearBackground,
+    DrawRectangle, DrawRectangleLines, DrawText, DrawCircle,
+    DrawTriangleFill,
+    IsKeyPressed, IsKeyDown, GetRandomValue,
+    RAYWHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK, SKYBLUE,
+    DARKGRAY, LIGHTGRAY, BLACK, WHITE, GOLD, MAROON, DARKGREEN, DARKBLUE,
+    BROWN, DARKBROWN, BEIGE,
+    KEY_UP, KEY_DOWN, KEY_W, KEY_S, KEY_R, KEY_SPACE
+} from "../src/raylib.hml";
+
+// Screen dimensions
+let screenWidth = 900;
+let screenHeight = 500;
+
+// Sleigh properties
+let sleighX: f32 = 100.0;
+let sleighY: f32 = 250.0;
+let sleighWidth = 80;
+let sleighHeight = 35;
+let sleighSpeed: f32 = 300.0;
+
+// Game state
+let score = 0;
+let highScore = 0;
+let gameOver = 0;
+let distance: f32 = 0.0;
+let scrollSpeed: f32 = 250.0;
+let speedIncreaseTimer: f32 = 0.0;
+
+// Obstacles (max 10)
+// Each obstacle: x, y, width, height, type (1=chimney, 2=cloud, 3=bird)
+let obs0x: f32 = 1000.0; let obs0y: f32 = 350.0; let obs0w = 40; let obs0h = 100; let obs0t = 1; let obs0a = 1;
+let obs1x: f32 = 1300.0; let obs1y: f32 = 50.0; let obs1w = 80; let obs1h = 50; let obs1t = 2; let obs1a = 1;
+let obs2x: f32 = 1600.0; let obs2y: f32 = 380.0; let obs2w = 50; let obs2h = 80; let obs2t = 1; let obs2a = 1;
+let obs3x: f32 = 1900.0; let obs3y: f32 = 150.0; let obs3w = 30; let obs3h = 30; let obs3t = 3; let obs3a = 1;
+let obs4x: f32 = 2200.0; let obs4y: f32 = 400.0; let obs4w = 60; let obs4h = 60; let obs4t = 1; let obs4a = 1;
+let obs5x: f32 = 2500.0; let obs5y: f32 = 80.0; let obs5w = 70; let obs5h = 45; let obs5t = 2; let obs5a = 1;
+let obs6x: f32 = 2800.0; let obs6y: f32 = 200.0; let obs6w = 25; let obs6h = 25; let obs6t = 3; let obs6a = 1;
+let obs7x: f32 = 3100.0; let obs7y: f32 = 370.0; let obs7w = 45; let obs7h = 90; let obs7t = 1; let obs7a = 1;
+
+// Presents (max 5) - collectibles for bonus points
+let pres0x: f32 = 1150.0; let pres0y: f32 = 200.0; let pres0a = 1;
+let pres1x: f32 = 1750.0; let pres1y: f32 = 300.0; let pres1a = 1;
+let pres2x: f32 = 2350.0; let pres2y: f32 = 150.0; let pres2a = 1;
+let pres3x: f32 = 2950.0; let pres3y: f32 = 250.0; let pres3a = 1;
+let pres4x: f32 = 3550.0; let pres4y: f32 = 350.0; let pres4a = 1;
+
+let presentSize = 25;
+
+// Stars for background (parallax)
+let star0x: f32 = 100.0; let star0y = 50;
+let star1x: f32 = 250.0; let star1y = 120;
+let star2x: f32 = 400.0; let star2y = 30;
+let star3x: f32 = 550.0; let star3y = 90;
+let star4x: f32 = 700.0; let star4y = 60;
+let star5x: f32 = 850.0; let star5y = 140;
+let star6x: f32 = 150.0; let star6y = 180;
+let star7x: f32 = 450.0; let star7y = 160;
+let star8x: f32 = 600.0; let star8y = 200;
+let star9x: f32 = 800.0; let star9y = 100;
+
+// Ground buildings for scenery
+let build0x: f32 = 0.0; let build0h = 80;
+let build1x: f32 = 150.0; let build1h = 120;
+let build2x: f32 = 300.0; let build2h = 60;
+let build3x: f32 = 450.0; let build3h = 100;
+let build4x: f32 = 600.0; let build4h = 70;
+let build5x: f32 = 750.0; let build5h = 90;
+
+// Check collision between sleigh and a rectangle
+fn checkCollision(ox: f32, oy: f32, ow: i32, oh: i32): i32 {
+    let sleighLeft = sleighX;
+    let sleighRight = sleighX + sleighWidth;
+    let sleighTop = sleighY;
+    let sleighBottom = sleighY + sleighHeight;
+
+    let obsLeft = ox;
+    let obsRight = ox + ow;
+    let obsTop = oy;
+    let obsBottom = oy + oh;
+
+    if (sleighRight > obsLeft) {
+        if (sleighLeft < obsRight) {
+            if (sleighBottom > obsTop) {
+                if (sleighTop < obsBottom) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+// Check collision with present
+fn checkPresentCollision(px: f32, py: f32): i32 {
+    let sleighLeft = sleighX;
+    let sleighRight = sleighX + sleighWidth;
+    let sleighTop = sleighY;
+    let sleighBottom = sleighY + sleighHeight;
+
+    let presLeft = px;
+    let presRight = px + presentSize;
+    let presTop = py;
+    let presBottom = py + presentSize;
+
+    if (sleighRight > presLeft) {
+        if (sleighLeft < presRight) {
+            if (sleighBottom > presTop) {
+                if (sleighTop < presBottom) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+// Reset obstacle to right side with random properties
+fn resetObstacle(idx: i32) {
+    let newX: f32 = screenWidth + GetRandomValue(100, 400);
+    let newY: f32 = GetRandomValue(30, screenHeight - 150);
+    let newType = GetRandomValue(1, 3);
+    let newW = 40;
+    let newH = 60;
+
+    if (newType == 1) {
+        // Chimney - tall and narrow, at bottom
+        newW = GetRandomValue(35, 55);
+        newH = GetRandomValue(70, 120);
+        newY = screenHeight - newH - 40;
+    }
+    if (newType == 2) {
+        // Cloud - wide and short, in upper area
+        newW = GetRandomValue(60, 100);
+        newH = GetRandomValue(35, 55);
+        newY = GetRandomValue(20, 150);
+    }
+    if (newType == 3) {
+        // Bird - small, anywhere
+        newW = GetRandomValue(25, 35);
+        newH = GetRandomValue(20, 30);
+        newY = GetRandomValue(50, screenHeight - 150);
+    }
+
+    if (idx == 0) { obs0x = newX; obs0y = newY; obs0w = newW; obs0h = newH; obs0t = newType; }
+    if (idx == 1) { obs1x = newX; obs1y = newY; obs1w = newW; obs1h = newH; obs1t = newType; }
+    if (idx == 2) { obs2x = newX; obs2y = newY; obs2w = newW; obs2h = newH; obs2t = newType; }
+    if (idx == 3) { obs3x = newX; obs3y = newY; obs3w = newW; obs3h = newH; obs3t = newType; }
+    if (idx == 4) { obs4x = newX; obs4y = newY; obs4w = newW; obs4h = newH; obs4t = newType; }
+    if (idx == 5) { obs5x = newX; obs5y = newY; obs5w = newW; obs5h = newH; obs5t = newType; }
+    if (idx == 6) { obs6x = newX; obs6y = newY; obs6w = newW; obs6h = newH; obs6t = newType; }
+    if (idx == 7) { obs7x = newX; obs7y = newY; obs7w = newW; obs7h = newH; obs7t = newType; }
+}
+
+// Reset present to right side
+fn resetPresent(idx: i32) {
+    let newX: f32 = screenWidth + GetRandomValue(200, 600);
+    let newY: f32 = GetRandomValue(50, screenHeight - 150);
+
+    if (idx == 0) { pres0x = newX; pres0y = newY; pres0a = 1; }
+    if (idx == 1) { pres1x = newX; pres1y = newY; pres1a = 1; }
+    if (idx == 2) { pres2x = newX; pres2y = newY; pres2a = 1; }
+    if (idx == 3) { pres3x = newX; pres3y = newY; pres3a = 1; }
+    if (idx == 4) { pres4x = newX; pres4y = newY; pres4a = 1; }
+}
+
+// Draw the sleigh (facing right)
+fn drawSleigh() {
+    let sx: i32 = sleighX;
+    let sy: i32 = sleighY;
+
+    // Reindeer (in front, on the right side)
+    DrawRectangle(sx + 85, sy + 10, 25, 12, BROWN);  // Body
+    DrawRectangle(sx + 107, sy + 5, 8, 10, BROWN);   // Head
+    DrawRectangle(sx + 108, sy - 2, 2, 7, DARKBROWN); // Antler 1
+    DrawRectangle(sx + 113, sy - 2, 2, 7, DARKBROWN); // Antler 2
+    DrawCircle(sx + 115, sy + 8, 2.0, RED);           // Rudolph's nose!
+
+    // Reins
+    DrawRectangle(sx + 55, sy + 15, 35, 2, DARKBROWN);
+
+    // Sleigh body (red)
+    DrawRectangle(sx + 5, sy + 10, 60, 20, MAROON);
+    DrawRectangle(sx, sy + 15, 70, 15, RED);
+
+    // Sleigh front curve (on right side now)
+    DrawRectangle(sx + 60, sy + 20, 15, 10, RED);
+
+    // Sleigh runners (gold)
+    DrawRectangle(sx, sy + 30, 80, 5, GOLD);
+    DrawRectangle(sx - 5, sy + 32, 10, 3, GOLD);
+    DrawRectangle(sx + 75, sy + 32, 10, 3, GOLD);
+
+    // Santa (sitting in sleigh)
+    DrawRectangle(sx + 20, sy - 5, 25, 18, RED);   // Body
+    DrawRectangle(sx + 22, sy + 10, 8, 5, BLACK);  // Belt
+    DrawRectangle(sx + 24, sy + 11, 4, 3, GOLD);   // Belt buckle
+
+    // Head
+    DrawCircle(sx + 32, sy - 12, 10.0, BEIGE);     // Face
+
+    // Beard
+    DrawCircle(sx + 32, sy - 5, 8.0, WHITE);       // Beard main
+    DrawCircle(sx + 28, sy - 8, 5.0, WHITE);       // Beard left
+    DrawCircle(sx + 36, sy - 8, 5.0, WHITE);       // Beard right
+    DrawRectangle(sx + 25, sy - 10, 14, 8, WHITE); // Beard fill
+
+    // Face details
+    DrawRectangle(sx + 28, sy - 15, 3, 3, BLACK);  // Left eye
+    DrawRectangle(sx + 34, sy - 15, 3, 3, BLACK);  // Right eye
+    DrawCircle(sx + 32, sy - 10, 2.0, RED);        // Rosy nose
+    DrawRectangle(sx + 29, sy - 7, 6, 2, MAROON);  // Smile
+
+    // Rosy cheeks
+    DrawCircle(sx + 26, sy - 11, 2.0, PINK);       // Left cheek
+    DrawCircle(sx + 38, sy - 11, 2.0, PINK);       // Right cheek
+
+    // Hat
+    DrawRectangle(sx + 22, sy - 24, 20, 12, RED);  // Hat body
+    DrawRectangle(sx + 20, sy - 14, 24, 4, WHITE); // Hat brim (fur)
+    DrawCircle(sx + 44, sy - 22, 5.0, WHITE);      // Hat pom-pom
+
+    // Arm waving
+    DrawRectangle(sx + 42, sy - 2, 12, 6, RED);    // Arm
+    DrawCircle(sx + 55, sy + 1, 4.0, BEIGE);       // Hand (waving)
+}
+
+// Draw an obstacle based on type
+fn drawObstacle(ox: f32, oy: f32, ow: i32, oh: i32, otype: i32) {
+    let x: i32 = ox;
+    let y: i32 = oy;
+
+    if (otype == 1) {
+        // Chimney
+        DrawRectangle(x, y, ow, oh, MAROON);
+        DrawRectangle(x - 3, y, ow + 6, 8, DARKBROWN);  // Top
+        // Snow on top
+        DrawRectangle(x, y - 3, ow, 5, WHITE);
+    }
+    if (otype == 2) {
+        // Cloud
+        DrawRectangle(x + 10, y + 10, ow - 20, oh - 15, WHITE);
+        DrawCircle(x + 15, y + 20, 18.0, WHITE);
+        DrawCircle(x + ow - 15, y + 20, 18.0, WHITE);
+        DrawCircle(x + divi(ow, 2), y + 15, 22.0, WHITE);
+    }
+    if (otype == 3) {
+        // Bird
+        DrawRectangle(x + 5, y + 8, ow - 10, oh - 16, DARKGRAY);
+        // Wings
+        DrawRectangle(x, y + 5, 10, 6, DARKGRAY);
+        DrawRectangle(x + ow - 10, y + 5, 10, 6, DARKGRAY);
+        // Beak
+        DrawRectangle(x + ow - 3, y + 10, 6, 4, ORANGE);
+    }
+}
+
+// Draw a present
+fn drawPresent(px: f32, py: f32) {
+    let x: i32 = px;
+    let y: i32 = py;
+
+    // Box
+    DrawRectangle(x, y, presentSize, presentSize, GREEN);
+    DrawRectangle(x + 10, y, 5, presentSize, RED);  // Vertical ribbon
+    DrawRectangle(x, y + 10, presentSize, 5, RED);  // Horizontal ribbon
+    // Bow
+    DrawRectangle(x + 8, y - 5, 9, 7, RED);
+}
+
+// Reset game
+fn resetGame() {
+    sleighY = 250.0;
+    score = 0;
+    distance = 0.0;
+    scrollSpeed = 250.0;
+    gameOver = 0;
+
+    // Reset obstacles
+    obs0x = 1000.0; obs1x = 1300.0; obs2x = 1600.0; obs3x = 1900.0;
+    obs4x = 2200.0; obs5x = 2500.0; obs6x = 2800.0; obs7x = 3100.0;
+
+    // Reset presents
+    pres0x = 1150.0; pres0a = 1;
+    pres1x = 1750.0; pres1a = 1;
+    pres2x = 2350.0; pres2a = 1;
+    pres3x = 2950.0; pres3a = 1;
+    pres4x = 3550.0; pres4a = 1;
+}
+
+InitWindow(screenWidth, screenHeight, "Santa's Sleigh - Hemlock + Raylib");
+SetTargetFPS(60);
+
+while (WindowShouldClose() == 0) {
+    let dt = GetFrameTime();
+
+    // Restart
+    if (IsKeyPressed(KEY_R) != 0) {
+        if (score > highScore) { highScore = score; }
+        resetGame();
+    }
+
+    if (gameOver == 0) {
+        // Sleigh movement
+        if (IsKeyDown(KEY_UP) != 0) {
+            sleighY = sleighY - sleighSpeed * dt;
+        }
+        if (IsKeyDown(KEY_W) != 0) {
+            sleighY = sleighY - sleighSpeed * dt;
+        }
+        if (IsKeyDown(KEY_DOWN) != 0) {
+            sleighY = sleighY + sleighSpeed * dt;
+        }
+        if (IsKeyDown(KEY_S) != 0) {
+            sleighY = sleighY + sleighSpeed * dt;
+        }
+
+        // Clamp sleigh position
+        if (sleighY < 10.0) { sleighY = 10.0; }
+        if (sleighY > screenHeight - sleighHeight - 50) {
+            sleighY = screenHeight - sleighHeight - 50;
+        }
+
+        // Update distance and score
+        distance = distance + scrollSpeed * dt;
+        score = distance / 10.0;
+
+        // Increase speed over time
+        speedIncreaseTimer = speedIncreaseTimer + dt;
+        if (speedIncreaseTimer > 5.0) {
+            scrollSpeed = scrollSpeed + 15.0;
+            if (scrollSpeed > 500.0) { scrollSpeed = 500.0; }
+            speedIncreaseTimer = 0.0;
+        }
+
+        // Move obstacles
+        obs0x = obs0x - scrollSpeed * dt;
+        obs1x = obs1x - scrollSpeed * dt;
+        obs2x = obs2x - scrollSpeed * dt;
+        obs3x = obs3x - scrollSpeed * dt;
+        obs4x = obs4x - scrollSpeed * dt;
+        obs5x = obs5x - scrollSpeed * dt;
+        obs6x = obs6x - scrollSpeed * dt;
+        obs7x = obs7x - scrollSpeed * dt;
+
+        // Reset obstacles when off screen
+        if (obs0x < -100.0) { resetObstacle(0); }
+        if (obs1x < -100.0) { resetObstacle(1); }
+        if (obs2x < -100.0) { resetObstacle(2); }
+        if (obs3x < -100.0) { resetObstacle(3); }
+        if (obs4x < -100.0) { resetObstacle(4); }
+        if (obs5x < -100.0) { resetObstacle(5); }
+        if (obs6x < -100.0) { resetObstacle(6); }
+        if (obs7x < -100.0) { resetObstacle(7); }
+
+        // Move presents
+        pres0x = pres0x - scrollSpeed * dt;
+        pres1x = pres1x - scrollSpeed * dt;
+        pres2x = pres2x - scrollSpeed * dt;
+        pres3x = pres3x - scrollSpeed * dt;
+        pres4x = pres4x - scrollSpeed * dt;
+
+        // Reset presents when off screen
+        if (pres0x < -50.0) { resetPresent(0); }
+        if (pres1x < -50.0) { resetPresent(1); }
+        if (pres2x < -50.0) { resetPresent(2); }
+        if (pres3x < -50.0) { resetPresent(3); }
+        if (pres4x < -50.0) { resetPresent(4); }
+
+        // Check present collection
+        if (pres0a != 0) {
+            if (checkPresentCollision(pres0x, pres0y) != 0) {
+                pres0a = 0;
+                score = score + 50;
+            }
+        }
+        if (pres1a != 0) {
+            if (checkPresentCollision(pres1x, pres1y) != 0) {
+                pres1a = 0;
+                score = score + 50;
+            }
+        }
+        if (pres2a != 0) {
+            if (checkPresentCollision(pres2x, pres2y) != 0) {
+                pres2a = 0;
+                score = score + 50;
+            }
+        }
+        if (pres3a != 0) {
+            if (checkPresentCollision(pres3x, pres3y) != 0) {
+                pres3a = 0;
+                score = score + 50;
+            }
+        }
+        if (pres4a != 0) {
+            if (checkPresentCollision(pres4x, pres4y) != 0) {
+                pres4a = 0;
+                score = score + 50;
+            }
+        }
+
+        // Check obstacle collisions
+        if (checkCollision(obs0x, obs0y, obs0w, obs0h) != 0) { gameOver = 1; }
+        if (checkCollision(obs1x, obs1y, obs1w, obs1h) != 0) { gameOver = 1; }
+        if (checkCollision(obs2x, obs2y, obs2w, obs2h) != 0) { gameOver = 1; }
+        if (checkCollision(obs3x, obs3y, obs3w, obs3h) != 0) { gameOver = 1; }
+        if (checkCollision(obs4x, obs4y, obs4w, obs4h) != 0) { gameOver = 1; }
+        if (checkCollision(obs5x, obs5y, obs5w, obs5h) != 0) { gameOver = 1; }
+        if (checkCollision(obs6x, obs6y, obs6w, obs6h) != 0) { gameOver = 1; }
+        if (checkCollision(obs7x, obs7y, obs7w, obs7h) != 0) { gameOver = 1; }
+
+        // Move stars (slow parallax)
+        star0x = star0x - scrollSpeed * dt * 0.1;
+        star1x = star1x - scrollSpeed * dt * 0.1;
+        star2x = star2x - scrollSpeed * dt * 0.1;
+        star3x = star3x - scrollSpeed * dt * 0.1;
+        star4x = star4x - scrollSpeed * dt * 0.1;
+        star5x = star5x - scrollSpeed * dt * 0.1;
+        star6x = star6x - scrollSpeed * dt * 0.1;
+        star7x = star7x - scrollSpeed * dt * 0.1;
+        star8x = star8x - scrollSpeed * dt * 0.1;
+        star9x = star9x - scrollSpeed * dt * 0.1;
+
+        // Wrap stars
+        if (star0x < -10.0) { star0x = screenWidth + 10.0; }
+        if (star1x < -10.0) { star1x = screenWidth + 10.0; }
+        if (star2x < -10.0) { star2x = screenWidth + 10.0; }
+        if (star3x < -10.0) { star3x = screenWidth + 10.0; }
+        if (star4x < -10.0) { star4x = screenWidth + 10.0; }
+        if (star5x < -10.0) { star5x = screenWidth + 10.0; }
+        if (star6x < -10.0) { star6x = screenWidth + 10.0; }
+        if (star7x < -10.0) { star7x = screenWidth + 10.0; }
+        if (star8x < -10.0) { star8x = screenWidth + 10.0; }
+        if (star9x < -10.0) { star9x = screenWidth + 10.0; }
+
+        // Move buildings (medium parallax)
+        build0x = build0x - scrollSpeed * dt * 0.3;
+        build1x = build1x - scrollSpeed * dt * 0.3;
+        build2x = build2x - scrollSpeed * dt * 0.3;
+        build3x = build3x - scrollSpeed * dt * 0.3;
+        build4x = build4x - scrollSpeed * dt * 0.3;
+        build5x = build5x - scrollSpeed * dt * 0.3;
+
+        // Wrap buildings
+        if (build0x < -150.0) { build0x = screenWidth + GetRandomValue(0, 50); build0h = GetRandomValue(50, 120); }
+        if (build1x < -150.0) { build1x = screenWidth + GetRandomValue(0, 50); build1h = GetRandomValue(50, 120); }
+        if (build2x < -150.0) { build2x = screenWidth + GetRandomValue(0, 50); build2h = GetRandomValue(50, 120); }
+        if (build3x < -150.0) { build3x = screenWidth + GetRandomValue(0, 50); build3h = GetRandomValue(50, 120); }
+        if (build4x < -150.0) { build4x = screenWidth + GetRandomValue(0, 50); build4h = GetRandomValue(50, 120); }
+        if (build5x < -150.0) { build5x = screenWidth + GetRandomValue(0, 50); build5h = GetRandomValue(50, 120); }
+    }
+
+    // Draw
+    BeginDrawing();
+
+    // Night sky gradient (dark blue to lighter blue)
+    DrawRectangle(0, 0, screenWidth, divi(screenHeight, 3), DARKBLUE);
+    DrawRectangle(0, divi(screenHeight, 3), screenWidth, divi(screenHeight, 3), BLUE);
+    DrawRectangle(0, divi(screenHeight * 2, 3), screenWidth, divi(screenHeight, 3) + 50, DARKBLUE);
+
+    // Stars
+    let s0x: i32 = star0x; let s1x: i32 = star1x; let s2x: i32 = star2x;
+    let s3x: i32 = star3x; let s4x: i32 = star4x; let s5x: i32 = star5x;
+    let s6x: i32 = star6x; let s7x: i32 = star7x; let s8x: i32 = star8x;
+    let s9x: i32 = star9x;
+    DrawRectangle(s0x, star0y, 3, 3, WHITE);
+    DrawRectangle(s1x, star1y, 2, 2, YELLOW);
+    DrawRectangle(s2x, star2y, 3, 3, WHITE);
+    DrawRectangle(s3x, star3y, 2, 2, WHITE);
+    DrawRectangle(s4x, star4y, 4, 4, YELLOW);
+    DrawRectangle(s5x, star5y, 2, 2, WHITE);
+    DrawRectangle(s6x, star6y, 3, 3, WHITE);
+    DrawRectangle(s7x, star7y, 2, 2, YELLOW);
+    DrawRectangle(s8x, star8y, 3, 3, WHITE);
+    DrawRectangle(s9x, star9y, 2, 2, WHITE);
+
+    // Moon
+    DrawCircle(screenWidth - 80, 60, 35.0, RAYWHITE);
+    DrawCircle(screenWidth - 70, 55, 30.0, DARKBLUE);  // Crescent effect
+
+    // Ground (snow)
+    DrawRectangle(0, screenHeight - 40, screenWidth, 40, WHITE);
+
+    // Buildings silhouette
+    let b0x: i32 = build0x; let b1x: i32 = build1x; let b2x: i32 = build2x;
+    let b3x: i32 = build3x; let b4x: i32 = build4x; let b5x: i32 = build5x;
+    DrawRectangle(b0x, screenHeight - 40 - build0h, 100, build0h, DARKGRAY);
+    DrawRectangle(b1x, screenHeight - 40 - build1h, 80, build1h, DARKGRAY);
+    DrawRectangle(b2x, screenHeight - 40 - build2h, 120, build2h, DARKGRAY);
+    DrawRectangle(b3x, screenHeight - 40 - build3h, 90, build3h, DARKGRAY);
+    DrawRectangle(b4x, screenHeight - 40 - build4h, 110, build4h, DARKGRAY);
+    DrawRectangle(b5x, screenHeight - 40 - build5h, 85, build5h, DARKGRAY);
+    // Windows on buildings
+    DrawRectangle(b0x + 10, screenHeight - 40 - build0h + 20, 15, 15, YELLOW);
+    DrawRectangle(b0x + 40, screenHeight - 40 - build0h + 40, 15, 15, YELLOW);
+    DrawRectangle(b1x + 20, screenHeight - 40 - build1h + 30, 12, 12, YELLOW);
+    DrawRectangle(b2x + 30, screenHeight - 40 - build2h + 15, 15, 15, YELLOW);
+    DrawRectangle(b3x + 15, screenHeight - 40 - build3h + 25, 12, 12, YELLOW);
+
+    // Draw obstacles
+    drawObstacle(obs0x, obs0y, obs0w, obs0h, obs0t);
+    drawObstacle(obs1x, obs1y, obs1w, obs1h, obs1t);
+    drawObstacle(obs2x, obs2y, obs2w, obs2h, obs2t);
+    drawObstacle(obs3x, obs3y, obs3w, obs3h, obs3t);
+    drawObstacle(obs4x, obs4y, obs4w, obs4h, obs4t);
+    drawObstacle(obs5x, obs5y, obs5w, obs5h, obs5t);
+    drawObstacle(obs6x, obs6y, obs6w, obs6h, obs6t);
+    drawObstacle(obs7x, obs7y, obs7w, obs7h, obs7t);
+
+    // Draw presents
+    if (pres0a != 0) { drawPresent(pres0x, pres0y); }
+    if (pres1a != 0) { drawPresent(pres1x, pres1y); }
+    if (pres2a != 0) { drawPresent(pres2x, pres2y); }
+    if (pres3a != 0) { drawPresent(pres3x, pres3y); }
+    if (pres4a != 0) { drawPresent(pres4x, pres4y); }
+
+    // Draw sleigh
+    drawSleigh();
+
+    // UI
+    DrawRectangle(0, 0, screenWidth, 30, BLACK);
+    DrawText("SANTA'S SLEIGH", 10, 5, 20, RED);
+    DrawText("Score: " + score, 200, 7, 16, WHITE);
+    DrawText("High Score: " + highScore, 350, 7, 16, GOLD);
+    DrawText("Speed: " + scrollSpeed, 550, 7, 16, SKYBLUE);
+    DrawText("FPS: " + GetFPS(), screenWidth - 80, 7, 16, GREEN);
+
+    // Controls hint
+    DrawText("Up/Down or W/S: Move | R: Restart | Collect presents for bonus!", 180, screenHeight - 20, 14, LIGHTGRAY);
+
+    // Game over overlay
+    if (gameOver != 0) {
+        DrawRectangle(divi(screenWidth, 2) - 160, divi(screenHeight, 2) - 90, 320, 180, BLACK);
+        DrawRectangleLines(divi(screenWidth, 2) - 160, divi(screenHeight, 2) - 90, 320, 180, RED);
+
+        DrawText("CRASH!", divi(screenWidth, 2) - 70, divi(screenHeight, 2) - 70, 40, RED);
+        DrawText("Final Score: " + score, divi(screenWidth, 2) - 80, divi(screenHeight, 2) - 15, 24, WHITE);
+
+        if (score > highScore) {
+            DrawText("NEW HIGH SCORE!", divi(screenWidth, 2) - 100, divi(screenHeight, 2) + 20, 22, GOLD);
+        }
+
+        DrawText("Press R to try again", divi(screenWidth, 2) - 95, divi(screenHeight, 2) + 55, 18, LIGHTGRAY);
+    }
+
+    EndDrawing();
+}
+
+if (score > highScore) {
+    highScore = score;
+}
+
+CloseWindow();
+print("Thanks for playing Santa's Sleigh!");
