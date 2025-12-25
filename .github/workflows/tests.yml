@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout raylock
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
+
+      - name: Build and install raylib
+        run: |
+          git clone --depth 1 https://github.com/raysan5/raylib.git ../raylib
+          cd ../raylib/src
+          make PLATFORM=PLATFORM_DESKTOP
+          sudo make install
+
+      - name: Clone and build Hemlock
+        run: |
+          git clone https://github.com/hemlang/hemlock.git ../hemlock
+          cd ../hemlock
+          make
+          sudo cp hemlock /usr/local/bin/
+
+      - name: Run tests
+        run: ./tests/run_tests.sh hemlock
